@@ -19,6 +19,7 @@ diffed), and a rules-only / LLM-only / hybrid ablation.
 from __future__ import annotations
 
 import csv
+import logging
 import sys
 from collections import Counter
 from pathlib import Path
@@ -28,6 +29,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from context_builder import Dataset, build_context  # noqa: E402
 from rules import apply_rules  # noqa: E402
 from router import route  # noqa: E402
+
+logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(name)s %(message)s")
+logger = logging.getLogger("evaluation")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DATASET_DIR = REPO_ROOT / "dataset"
@@ -56,12 +60,23 @@ def load_message_history_index() -> dict[str, dict]:
         return {row["message_id"]: row for row in csv.DictReader(f)}
 
 
-def predict_hybrid(row: dict, ds: Dataset) -> tuple[dict, str]:
+def predict_hybrid(row: dict, ds: Dataset) -> tuple[dict | None, str]:
+    """Returns (decision, source). source is "rule", "router", or "blocked" —
+    "blocked" means the LLM call itself failed (e.g. every configured
+    provider is out of daily quota) and decision is None. A live-API
+    dependency failing is a real, expected condition to handle gracefully,
+    not something the evaluator should crash on — it should report what it
+    could determine and flag what it couldn't, same as any other partial
+    dataset issue."""
     context = build_context(row, ds)
     rule_result = apply_rules(context)
     if rule_result.get("resolved"):
         return rule_result, "rule"
-    return route(context, rule_result), "router"
+    try:
+        return route(context, rule_result), "router"
+    except Exception as exc:
+        logger.warning("router blocked for %s: %s", row["message_id"], exc)
+        return None, "blocked"
 
 
 def predict_rules_only(row: dict, ds: Dataset) -> dict | None:
@@ -70,9 +85,13 @@ def predict_rules_only(row: dict, ds: Dataset) -> dict | None:
     return rule_result if rule_result.get("resolved") else None
 
 
-def predict_llm_only(row: dict, ds: Dataset) -> dict:
+def predict_llm_only(row: dict, ds: Dataset) -> dict | None:
     context = build_context(row, ds)
-    return route(context, {"resolved": False, "rule": None, "notes": []})
+    try:
+        return route(context, {"resolved": False, "rule": None, "notes": []})
+    except Exception as exc:
+        logger.warning("LLM-only blocked for %s: %s", row["message_id"], exc)
+        return None
 
 
 def _prf1(y_true: list[str], y_pred: list[str], labels: list[str]) -> tuple[float, float, dict]:
@@ -170,16 +189,26 @@ def run() -> dict:
     # --- hybrid (the real system) ---
     hybrid_predictions = []
     hybrid_sources = Counter()
+    blocked_ids = []
     for row in samples:
         decision, source = predict_hybrid(row, ds)
-        hybrid_predictions.append({"message_id": row["message_id"], **decision})
         hybrid_sources[source] += 1
+        if source == "blocked":
+            blocked_ids.append(row["message_id"])
+            continue
+        hybrid_predictions.append({"message_id": row["message_id"], **decision})
 
     sanity_issues = format_sanity_check(hybrid_predictions)
 
-    gold_action = [row["action"] for row in samples]
+    # All gold/accuracy/cost/evidence metrics below are computed ONLY over
+    # rows that actually got a prediction — a message blocked by an exhausted
+    # API quota is neither a correct nor incorrect prediction, it's missing
+    # data, and silently counting it as wrong would understate accuracy for
+    # a reason that has nothing to do with model quality.
+    scored_rows = [rows_by_id[p["message_id"]] for p in hybrid_predictions]
+    gold_action = [row["action"] for row in scored_rows]
     pred_action = [p["action"] for p in hybrid_predictions]
-    gold_type = [row["message_type"] for row in samples]
+    gold_type = [row["message_type"] for row in scored_rows]
     pred_type = [p["message_type"] for p in hybrid_predictions]
 
     action_acc, action_macro_f1, action_metrics = _prf1(gold_action, pred_action, VALID_ACTIONS)
@@ -187,24 +216,28 @@ def run() -> dict:
     type_acc, type_macro_f1, type_metrics = _prf1(gold_type, pred_type, type_labels)
 
     total_cost = sum(COST.get((t, p), 0) for t, p in zip(gold_action, pred_action))
-    avg_cost = total_cost / len(samples)
+    avg_cost = total_cost / len(scored_rows) if scored_rows else None
     confusion = Counter(zip(gold_action, pred_action))
 
     pairs = [(rows_by_id[p["message_id"]], p) for p in hybrid_predictions]
     ev_precision, ev_correct, ev_total = evidence_relevance_precision(pairs, history_index)
     gold_overlap = evidence_gold_overlap(pairs)
 
-    # --- determinism check: rerun hybrid, diff ---
+    # --- determinism check: rerun hybrid on the SAME scored subset, diff ---
+    # (skips messages already known to be blocked — no point re-attempting
+    # an exhausted quota just to prove the diff mechanism works)
     hybrid_predictions_2 = []
-    for row in samples:
+    for row in scored_rows:
         decision, source = predict_hybrid(row, ds)
+        if source == "blocked":
+            continue
         hybrid_predictions_2.append({"message_id": row["message_id"], **decision})
     deterministic = hybrid_predictions == hybrid_predictions_2
     diffs = [] if deterministic else [
         (a, b) for a, b in zip(hybrid_predictions, hybrid_predictions_2) if a != b
     ]
 
-    # --- ablation: rules-only ---
+    # --- ablation: rules-only (no API calls, unaffected by quota) ---
     rules_only_results = [(row["message_id"], predict_rules_only(row, ds)) for row in samples]
     rules_only_resolved = [(mid, r) for mid, r in rules_only_results if r is not None]
     rules_only_coverage = len(rules_only_resolved) / len(samples)
@@ -216,12 +249,20 @@ def run() -> dict:
         rules_only_acc = None
 
     # --- ablation: LLM-only (bypasses rules.py entirely) ---
-    llm_only_predictions = [predict_llm_only(row, ds) for row in samples]
-    llm_only_pred_action = [p["action"] for p in llm_only_predictions]
-    llm_only_acc = sum(1 for t, p in zip(gold_action, llm_only_pred_action) if t == p) / len(samples)
+    llm_only_raw = [(row["message_id"], predict_llm_only(row, ds)) for row in samples]
+    llm_only_scored = [(mid, p) for mid, p in llm_only_raw if p is not None]
+    llm_only_blocked = len(llm_only_raw) - len(llm_only_scored)
+    if llm_only_scored:
+        lo_gold = [rows_by_id[mid]["action"] for mid, _ in llm_only_scored]
+        lo_pred = [p["action"] for _, p in llm_only_scored]
+        llm_only_acc = sum(1 for t, p in zip(lo_gold, lo_pred) if t == p) / len(llm_only_scored)
+    else:
+        llm_only_acc = None
 
     return {
         "n": len(samples),
+        "n_scored": len(scored_rows),
+        "blocked_ids": blocked_ids,
         "sanity_issues": sanity_issues,
         "hybrid_sources": dict(hybrid_sources),
         "gold_action_dist": dict(Counter(gold_action)),
@@ -246,25 +287,62 @@ def run() -> dict:
         "rules_only_coverage": rules_only_coverage,
         "rules_only_accuracy": rules_only_acc,
         "llm_only_accuracy": llm_only_acc,
+        "llm_only_scored": len(llm_only_scored),
+        "llm_only_blocked": llm_only_blocked,
         "hybrid_accuracy": action_acc,
+        "hybrid_predictions": hybrid_predictions,
+        "scored_rows": scored_rows,
     }
 
 
-def print_report(r: dict) -> None:
-    print(f"=== Format/sanity pass ({r['n']} sample_messages.csv rows) ===")
+def print_row_comparison(r: dict, rows_by_id: dict) -> None:
+    print(f"=== Per-row: predicted vs gold ({r['n_scored']}/{r['n']} scored, {len(r['blocked_ids'])} blocked) ===")
+    for pred in r["hybrid_predictions"]:
+        mid = pred["message_id"]
+        gold = rows_by_id[mid]
+        action_mark = "OK" if pred["action"] == gold["action"] else "XX"
+        type_mark = "OK" if pred["message_type"] == gold["message_type"] else "XX"
+        try:
+            conf_delta = float(pred["confidence"]) - float(gold["confidence"])
+        except (TypeError, ValueError):
+            conf_delta = None
+        print(f"  {mid}")
+        print(f"    action:       gold={gold['action']:8s} pred={pred['action']:8s} [{action_mark}]")
+        print(f"    message_type: gold={gold['message_type']:16s} pred={pred['message_type']:16s} [{type_mark}]")
+        conf_str = f"delta={conf_delta:+.2f}" if conf_delta is not None else "delta=n/a"
+        print(f"    confidence:   gold={gold['confidence']:6s} pred={pred['confidence']:<6} {conf_str}")
+        print(f"    evidence_message_ids: gold={gold['evidence_message_ids']!r} pred={pred['evidence_message_ids']!r}")
+    if r["blocked_ids"]:
+        print(f"  BLOCKED (no prediction — LLM call failed, all configured providers out of quota):")
+        for mid in r["blocked_ids"]:
+            print(f"    {mid}")
+
+
+def print_report(r: dict, rows_by_id: dict) -> None:
+    print(f"=== Format/sanity pass ({r['n']} sample_messages.csv rows, {r['n_scored']} scored, {len(r['blocked_ids'])} blocked) ===")
+    if r["blocked_ids"]:
+        print(f"  BLOCKED (excluded from all metrics below, not counted as wrong): {r['blocked_ids']}")
     if r["sanity_issues"]:
         for issue in r["sanity_issues"]:
             print(f"  ISSUE: {issue}")
     else:
-        print("  no format/range violations")
+        print("  no format/range violations on scored rows")
     print(f"  decision source: {r['hybrid_sources']}")
-    print(f"  gold action distribution:      {r['gold_action_dist']}")
-    print(f"  predicted action distribution: {r['pred_action_dist']}")
-    print(f"  gold message_type distribution:      {r['gold_type_dist']}")
-    print(f"  predicted message_type distribution: {r['pred_type_dist']}")
+    print(f"  gold action distribution (scored subset):      {r['gold_action_dist']}")
+    print(f"  predicted action distribution:                 {r['pred_action_dist']}")
+    print(f"  gold message_type distribution (scored subset): {r['gold_type_dist']}")
+    print(f"  predicted message_type distribution:             {r['pred_type_dist']}")
 
     print()
-    print("=== Per-field accuracy / F1 (hybrid system) ===")
+    print_row_comparison(r, rows_by_id)
+
+    if r["n_scored"] == 0:
+        print()
+        print("No rows scored — all blocked. Nothing further to report.")
+        return
+
+    print()
+    print(f"=== Per-field accuracy / F1 (hybrid system, n={r['n_scored']}) ===")
     print(f"  action:       accuracy={r['action_accuracy']:.3f}  macro_f1={r['action_macro_f1']:.3f}")
     for label, m in r["action_metrics"].items():
         print(f"    {label:10s} precision={m['precision']:.2f} recall={m['recall']:.2f} f1={m['f1']:.2f} support={m['support']}")
@@ -288,11 +366,13 @@ def print_report(r: dict) -> None:
     else:
         print("  §8 relevance precision: n/a (no non-none evidence cited by hybrid predictions)")
     go = r["evidence_gold_overlap"]
-    print(f"  gold overlap: hybrid cited {go['predicted_total']} IDs total, matched {go['matched']}/{go['gold_total']} gold citations"
-          f" (recall={go['recall']:.3f})" if go["recall"] is not None else "  gold overlap: n/a")
+    if go["recall"] is not None:
+        print(f"  gold overlap: hybrid cited {go['predicted_total']} IDs total, matched {go['matched']}/{go['gold_total']} gold citations (recall={go['recall']:.3f})")
+    else:
+        print("  gold overlap: n/a")
 
     print()
-    print("=== Determinism check (hybrid run twice) ===")
+    print("=== Determinism check (hybrid run twice on the scored subset) ===")
     print(f"  identical: {r['deterministic']}")
     if not r["deterministic"]:
         for a, b in r["determinism_diffs"]:
@@ -300,13 +380,19 @@ def print_report(r: dict) -> None:
 
     print()
     print("=== Ablation: rules-only vs LLM-only vs hybrid ===")
-    print(f"  rules-only:  coverage={r['rules_only_coverage']:.1%} of messages resolved by rules alone; "
-          f"accuracy on that resolved subset={r['rules_only_accuracy']:.3f}" if r["rules_only_accuracy"] is not None
-          else "  rules-only: no messages resolved")
-    print(f"  LLM-only:    coverage=100%; accuracy={r['llm_only_accuracy']:.3f}")
-    print(f"  hybrid:      coverage=100%; accuracy={r['hybrid_accuracy']:.3f}")
+    if r["rules_only_accuracy"] is not None:
+        print(f"  rules-only:  coverage={r['rules_only_coverage']:.1%} of all {r['n']} messages resolved by rules alone (no API needed); "
+              f"accuracy on that resolved subset={r['rules_only_accuracy']:.3f}")
+    else:
+        print("  rules-only: no messages resolved")
+    if r["llm_only_accuracy"] is not None:
+        print(f"  LLM-only:    scored={r['llm_only_scored']}/{r['n']} ({r['llm_only_blocked']} blocked); accuracy={r['llm_only_accuracy']:.3f}")
+    else:
+        print(f"  LLM-only:    all {r['llm_only_blocked']} calls blocked, no accuracy computable")
+    print(f"  hybrid:      scored={r['n_scored']}/{r['n']} ({len(r['blocked_ids'])} blocked); accuracy={r['hybrid_accuracy']:.3f}")
 
 
 if __name__ == "__main__":
     report = run()
-    print_report(report)
+    _rows_by_id = {row["message_id"]: row for row in load_sample_messages()}
+    print_report(report, _rows_by_id)

@@ -76,7 +76,7 @@ Respond with ONLY this JSON object, no prose, no markdown fences:
 # confidence-adjustment rule) can't silently keep serving a decision the old
 # logic produced for an unchanged MessageContext — determinism is "same
 # input+logic -> same output", not "same input -> output frozen forever."
-_ROUTER_LOGIC_VERSION = "5"
+_ROUTER_LOGIC_VERSION = "7"
 
 
 def _context_hash(context: dict) -> str:
@@ -159,6 +159,64 @@ def _call_groq(messages: list[dict]) -> str:
     return resp.choices[0].message.content
 
 
+def _gemini_retryable(exc: Exception) -> bool:
+    """429 on the per-*minute* RPM quota is transient — worth a short
+    backoff. 429 on the per-*day* RPD quota is not (reproduced directly:
+    gemini-2.5-flash-lite's free tier caps GenerateRequestsPerDayPerProjectPerModel
+    at 20/day too — the earlier assumption that switching flash variants
+    bought a materially higher daily allowance was wrong; it only added a
+    separate per-minute throttle on the same-size daily cap). Distinguish by
+    the quotaId in the structured QuotaFailure detail rather than guessing
+    from the RetryInfo delay, which can be short even for a daily-cap error."""
+    from google.genai.errors import ClientError
+
+    if not (isinstance(exc, ClientError) and exc.code == 429):
+        return False
+    try:
+        details = (exc.details or {}).get("error", {}).get("details", [])
+        for d in details:
+            if str(d.get("@type", "")).endswith("QuotaFailure"):
+                for v in d.get("violations", []):
+                    if "PerDay" in str(v.get("quotaId", "")):
+                        return False
+    except Exception:
+        pass
+    return True
+
+
+def _gemini_retry_delay(exc: Exception, attempt: int) -> float:
+    """gemini-2.5-flash-lite's free tier is a *per-minute* RPM cap (10/min,
+    confirmed from a live 429: quotaId GenerateRequestsPerMinutePerProjectPerModel-FreeTier),
+    not a daily one — clears in well under a minute, so this is worth
+    retrying, unlike a per-day quota. Parse the server's own RetryInfo delay
+    when present rather than guessing."""
+    try:
+        details = (exc.details or {}).get("error", {}).get("details", [])
+        for d in details:
+            if str(d.get("@type", "")).endswith("RetryInfo"):
+                delay_str = str(d.get("retryDelay", ""))
+                if delay_str.endswith("s"):
+                    return float(delay_str[:-1]) + 1.0
+    except Exception:
+        pass
+    return min(5 * (attempt + 1), 30)
+
+
+def _call_with_gemini_retry(fn, max_attempts: int = 4):
+    for attempt in range(max_attempts):
+        try:
+            return fn()
+        except Exception as exc:
+            if not _gemini_retryable(exc) or attempt == max_attempts - 1:
+                raise
+            wait = _gemini_retry_delay(exc, attempt)
+            logger.warning(
+                "Gemini router call failed (%s), retrying in %.1fs [attempt %d/%d]",
+                exc, wait, attempt + 1, max_attempts,
+            )
+            time.sleep(wait)
+
+
 def _call_gemini(messages: list[dict]) -> str:
     """Translates the OpenAI-style messages list (system/user/assistant) into
     Gemini's system_instruction + contents format."""
@@ -180,14 +238,16 @@ def _call_gemini(messages: list[dict]) -> str:
         elif m["role"] == "assistant":
             contents.append(types.Content(role="model", parts=[types.Part.from_text(text=m["content"])]))
 
-    resp = client.models.generate_content(
-        model=LLM_FALLBACK_MODEL,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            temperature=0,
-            response_mime_type="application/json",
-        ),
+    resp = _call_with_gemini_retry(
+        lambda: client.models.generate_content(
+            model=LLM_FALLBACK_MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0,
+                response_mime_type="application/json",
+            ),
+        )
     )
     return resp.text
 
