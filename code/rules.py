@@ -99,8 +99,23 @@ def _infer_message_type(text: str, conv_type: str) -> str:
     return "unknown"
 
 
-def _ids(items: list[dict]) -> str:
-    return ";".join(item["message_id"] for item in items) if items else "none"
+def _mute_supporting_ids(context: dict) -> list[str]:
+    """Every history_candidates/cross_user_safety_evidence entry whose own
+    reaction directly corroborates a mute decision (message_reported==1 or
+    muted_after_message==1). Used to backfill evidence_message_ids for any
+    rule that resolves to mute, regardless of which specific condition inside
+    that rule actually fired — a scam/report-rate/opt-out/repetition finding
+    should cite real supporting history when it exists, not just the columns
+    that happened to trip the rule's own threshold."""
+    ids = []
+    for h in context.get("history_candidates") or []:
+        reaction = h.get("reaction") or {}
+        if reaction.get("message_reported") == "1" or reaction.get("muted_after_message") == "1":
+            ids.append(h["message_id"])
+    # cross_user_safety_evidence is already filtered to reported/muted rows by context_builder.
+    for c in context.get("cross_user_safety_evidence") or []:
+        ids.append(c["message_id"])
+    return ids
 
 
 # --- rule 1: scam domain + payment/urgency language -------------------------
@@ -153,7 +168,6 @@ def rule_1_scam_domain(context: dict) -> dict | None:
     reason = f"{domain_clause}; message contains {language_clause} language"
 
     confidence = 0.95 if (domain_mismatch and urgency and payment) else 0.9
-    cross = context.get("cross_user_safety_evidence") or []
     return {
         "resolved": True,
         "rule": 1,
@@ -161,7 +175,7 @@ def rule_1_scam_domain(context: dict) -> dict | None:
         "message_type": "scam",
         "confidence": confidence,
         "reason": reason,
-        "evidence_message_ids": _ids(cross),
+        "evidence_message_ids": "none",  # backfilled by apply_rules() from supporting history/cross-user evidence
     }
 
 
@@ -198,7 +212,7 @@ def rule_2_opted_out_promo(context: dict) -> dict | None:
         "message_type": message_type,
         "confidence": 0.88,
         "reason": reason,
-        "evidence_message_ids": _ids(history),
+        "evidence_message_ids": "none",  # backfilled by apply_rules() from supporting history/cross-user evidence
     }
 
 
@@ -228,10 +242,6 @@ def rule_3_report_rate_outlier(context: dict) -> dict | None:
     else:
         confidence = 0.8
 
-    cross = context.get("cross_user_safety_evidence") or []
-    history = context.get("history_candidates") or []
-    evidence = cross if cross else history
-
     reason = (
         f"business.user_reports_30d={reports} / messages_sent_30d={sent} = {rate:.1%} report rate, "
         f"exceeding the dataset's IQR outlier threshold of {REPORT_RATE_OUTLIER_THRESHOLD:.1%}"
@@ -243,7 +253,7 @@ def rule_3_report_rate_outlier(context: dict) -> dict | None:
         "message_type": message_type,
         "confidence": confidence,
         "reason": reason,
-        "evidence_message_ids": _ids(evidence),
+        "evidence_message_ids": "none",  # backfilled by apply_rules() from supporting history/cross-user evidence
     }
 
 
@@ -423,7 +433,12 @@ def apply_rules(context: dict) -> dict:
     """Runs rules 1-7 in order. Returns the first resolved/escalation result,
     with any pending notes from earlier rules attached. If nothing resolves,
     returns {"resolved": False, "rule": None, "notes": [...]} — the message
-    goes to router.py."""
+    goes to router.py.
+
+    Any rule that resolves to mute gets its evidence_message_ids backfilled
+    (merged, deduped) with every history_candidates/cross_user_safety_evidence
+    entry that independently corroborates a mute — regardless of which specific
+    column tripped that rule's own condition. See _mute_supporting_ids()."""
     notes: list[dict] = []
     for rule_fn in _RULE_SEQUENCE:
         result = rule_fn(context)
@@ -432,6 +447,11 @@ def apply_rules(context: dict) -> dict:
         if result.get("pending"):
             notes.append(result)
             continue
+        if result.get("resolved") and result.get("action") == "mute":
+            existing = result.get("evidence_message_ids") or "none"
+            existing_ids = [] if existing == "none" else existing.split(";")
+            merged = list(dict.fromkeys(existing_ids + _mute_supporting_ids(context)))
+            result["evidence_message_ids"] = ";".join(merged) if merged else "none"
         result["notes"] = notes
         return result
     return {"resolved": False, "rule": None, "notes": notes}
