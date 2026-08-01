@@ -28,8 +28,21 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 # own retries (rate limits / sustained 503 capacity errors), image_processor.py
 # falls back to a second provider entirely rather than retrying the same
 # single point of failure.
+#
+# gemini-2.5-flash-lite, not gemini-2.5-flash: Gemini's free-tier quota is
+# tracked per model (confirmed directly from a 429 error body naming
+# "model: gemini-2.5-flash" as the quota dimension, quotaValue 20/day — we
+# exhausted that in one afternoon of testing). Different flash variants carry
+# independent quotas — verified empirically (gemini-2.5-flash-lite and
+# gemini-flash-lite-latest both answered live after gemini-2.5-flash and
+# gemini-2.0-flash were separately exhausted) since the official docs page
+# doesn't publish per-model free-tier RPD figures (JS-rendered dashboard, not
+# in the static page). flash-lite is also the tier Google positions for
+# higher-throughput/free-tier use, and produced equivalent-quality output on
+# a real OCR test (img_003) and a real routing-decision test before being
+# adopted here.
 VISION_FALLBACK_PROVIDER = os.environ.get("VISION_FALLBACK_PROVIDER", "google")
-VISION_FALLBACK_MODEL = os.environ.get("VISION_FALLBACK_MODEL", "gemini-2.5-flash")
+VISION_FALLBACK_MODEL = os.environ.get("VISION_FALLBACK_MODEL", "gemini-2.5-flash-lite")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 # Same rationale as the vision fallback above, for the text router: Groq's
@@ -38,6 +51,8 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 # day has used part of it (reproduced directly: 429 on tokens per day mid-run
 # processing dataset/messages.csv). router.py falls back to a second provider
 # on exhausted Groq retries rather than blocking on a quota that won't clear
-# for hours.
+# for hours. Same gemini-2.5-flash-lite swap as the vision fallback, same
+# per-model-quota reasoning — the *primary* router model (LLM_MODEL, Groq)
+# is intentionally left alone; only this fallback tier changed.
 LLM_FALLBACK_PROVIDER = os.environ.get("LLM_FALLBACK_PROVIDER", "google")
-LLM_FALLBACK_MODEL = os.environ.get("LLM_FALLBACK_MODEL", "gemini-2.5-flash")
+LLM_FALLBACK_MODEL = os.environ.get("LLM_FALLBACK_MODEL", "gemini-2.5-flash-lite")

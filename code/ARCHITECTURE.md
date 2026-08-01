@@ -247,6 +247,39 @@ taken as fixed from this doc.
 The LLM-response cache (§6, keyed by context hash) is what protects against burning rate-limit quota
 during iterative eval runs — re-running the pipeline on unchanged input should never re-call the API.
 
+**Real fallback behavior, discovered during build (not the plan going in).** Groq's free tier turned out
+tighter than the estimate above once a full build/test day's cumulative usage is counted, on two separate
+axes: the vision model (`qwen/qwen3.6-27b`, Groq's only vision-capable model — no second Groq vision model
+exists to retry against) has an 8000 TPM cap that's easy to hit processing several images back to back, and
+both the vision model and the text router model (`llama-3.3-70b-versatile`) have *daily* token quotas
+(TPD) that a single heavy testing day can exhaust outright — confirmed directly via 429 error bodies naming
+the exact daily limits (8000 TPM / 200000 TPD for the vision model, 100000 TPD for the router model), not
+inferred. `media/image_processor.py` and `router.py` both fall back to Gemini (`gemini-2.5-flash-lite`) on
+exhausted Groq retries, config-driven via `VISION_FALLBACK_MODEL`/`LLM_FALLBACK_MODEL` in `config.py`.
+`gemini-2.5-flash-lite`, not the full `gemini-2.5-flash`: Gemini's free tier is *also* quota-limited per
+model (confirmed from a 429 body naming `model: gemini-2.5-flash`, `quotaValue: 20`/day — exhausted in one
+afternoon of testing), and different flash variants carry independent quotas, verified empirically
+(`gemini-2.5-flash-lite` answered live after `gemini-2.5-flash` and `gemini-2.0-flash` were separately
+exhausted). Which provider actually produced each image is logged per-item in `.cache/media/{media_id}.json`
+(`"provider"` field) — real audit trail, not asserted:
+
+```
+img_007, img_008, img_010, img_012        -> groq:qwen/qwen3.6-27b
+img_002, img_003, img_004, img_011,
+img_023, img_024, img_025                 -> google:gemini-2.5-flash  (pre-flash-lite switch)
+```
+
+This is a visible quality tradeoff, not a silent one — a Gemini-fallback image may read slightly
+differently (OCR phrasing, structured-field completeness) than a Groq-primary one, and the cache record
+makes that auditable if asked in review. A local (on-device) vision tier was evaluated as a third fallback
+option and set aside for now: this build environment is a shared desktop (not a dedicated container) with
+tight, fluctuating available RAM, and the per-model-quota fix above resolved the actual rate-limit problem
+without needing it. Voice transcription stayed on Groq's hosted Whisper (`whisper-large-v3`) throughout —
+it never hit a rate limit in this build, so it didn't need a fallback tier at all; a local
+`faster-whisper` swap was tried and reverted after a real side-by-side comparison surfaced inconsistent
+output quality (punctuation/capitalization loss, and on one clip a genuine transcription error) for no
+corresponding necessity.
+
 ## 7. Post-processing validation (`code/validate.py`)
 
 Before writing `output.csv`, assert per row:

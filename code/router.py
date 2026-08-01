@@ -76,7 +76,7 @@ Respond with ONLY this JSON object, no prose, no markdown fences:
 # confidence-adjustment rule) can't silently keep serving a decision the old
 # logic produced for an unchanged MessageContext — determinism is "same
 # input+logic -> same output", not "same input -> output frozen forever."
-_ROUTER_LOGIC_VERSION = "4"
+_ROUTER_LOGIC_VERSION = "5"
 
 
 def _context_hash(context: dict) -> str:
