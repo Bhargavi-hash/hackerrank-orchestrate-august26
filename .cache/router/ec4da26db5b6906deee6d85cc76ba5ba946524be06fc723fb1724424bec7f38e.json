@@ -1,0 +1,11 @@
+{
+  "context_hash": "ec4da26db5b6906deee6d85cc76ba5ba946524be06fc723fb1724424bec7f38e",
+  "model": "llama-3.3-70b-versatile",
+  "result": {
+    "action": "notify",
+    "message_type": "urgent",
+    "reason": "The message is from a verified business with which the user has a confirmed travel booking history, and the content is about a change in airport pickup time, indicating a need for timely notification. The user's past engagement with similar messages also suggests they are likely to want to be notified about such updates. (Note: rule layer flagged but did not resolve: domain mismatch (domain_used_by_sender=link.wame.pro vs official_domain=thrillophilia.com).)",
+    "confidence": 0.65,
+    "evidence_message_ids": "message_0222"
+  }
+}

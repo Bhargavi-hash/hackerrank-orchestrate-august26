@@ -63,9 +63,17 @@ Respond with ONLY this JSON object, no prose, no markdown fences:
 }"""
 
 
+# Bump whenever _SYSTEM_PROMPT, _validate_and_clean, or _adjust_confidence
+# logic changes. Included in the cache key so a logic change (e.g. a new
+# confidence-adjustment rule) can't silently keep serving a decision the old
+# logic produced for an unchanged MessageContext — determinism is "same
+# input+logic -> same output", not "same input -> output frozen forever."
+_ROUTER_LOGIC_VERSION = "2"
+
+
 def _context_hash(context: dict) -> str:
     serialized = json.dumps(context, sort_keys=True, default=str)
-    return hashlib.sha256(serialized.encode()).hexdigest()
+    return hashlib.sha256(f"{_ROUTER_LOGIC_VERSION}:{serialized}".encode()).hexdigest()
 
 
 def _cache_path(context_hash: str) -> Path:
@@ -138,13 +146,63 @@ def _signal_summary(context: dict) -> dict:
     return summary
 
 
+def _partial_safety_flags(context: dict) -> list[str]:
+    """Individual halves of a mute-rule condition that are true on their own
+    but did not, by themselves, resolve a rule. Rule 1 (rules.py) needs
+    domain_signal (mismatch OR young registered-domain) AND payment/urgency
+    language; reaching the router with domain_signal true means only the
+    language half wasn't met — the domain half is still a real, unresolved
+    flag, not a cleared one. Rule 3 has no second half (an outlier report
+    rate resolves unconditionally), so it can't structurally reach the router
+    today, but is still checked here defensively in case that ever changes.
+    Used to cap confidence regardless of how strong the surrounding
+    relationship/history context looks (§6/msg_086: a real confirmed-booking
+    relationship doesn't retroactively un-spoof a mismatched domain)."""
+    business = (context.get("sender_context") or {}).get("business")
+    if not business:
+        return []
+
+    flags = []
+    domain_mismatch = business["domain_used_by_sender"] != business["official_domain"]
+    if domain_mismatch:
+        flags.append(
+            f"domain mismatch (domain_used_by_sender={business['domain_used_by_sender']} "
+            f"vs official_domain={business['official_domain']})"
+        )
+    else:
+        try:
+            age_ratio = int(business["domain_used_by_sender_age_days"]) / int(business["account_age_days"])
+        except (ValueError, ZeroDivisionError):
+            age_ratio = None
+        if age_ratio is not None and age_ratio < DOMAIN_AGE_RATIO_THRESHOLD:
+            flags.append(f"sending domain registered recently relative to account age (ratio={age_ratio:.2f})")
+
+    try:
+        report_rate = int(business["user_reports_30d"]) / int(business["messages_sent_30d"])
+    except (ValueError, ZeroDivisionError):
+        report_rate = None
+    if report_rate is not None and report_rate > REPORT_RATE_OUTLIER_THRESHOLD:
+        flags.append(f"business report rate is an outlier ({report_rate:.1%} > {REPORT_RATE_OUTLIER_THRESHOLD:.1%})")
+
+    return flags
+
+
+def _ensure_reason_names_flags(reason: str, partial_flags: list[str]) -> str:
+    lowered = reason.lower()
+    if any(kw in lowered for kw in ("domain", "report rate", "report_rate")):
+        return reason
+    return f"{reason} (Note: rule layer flagged but did not resolve: {'; '.join(partial_flags)}.)"
+
+
 def _adjust_confidence(confidence: float, context: dict, action: str) -> float:
     """§6: down (cap ~0.5-0.6) when context is thin — new/unknown sender, no
     history_candidates, media processing failed/uncertain. Up when
     history_candidates strongly agree with the decision (consistent past
-    reaction pattern). Floor is applied after the cap: if a message has both
-    uncertain media AND strong corroborating history, the real corroboration
-    is more informative than the media gap, so it can lift the cap back up."""
+    reaction pattern). Floor is applied after the thin-context cap: if a
+    message has both uncertain media AND strong corroborating history, the
+    real corroboration is more informative than the media gap, so it can lift
+    that cap back up. The partial-safety-flag cap below is applied last and
+    is not liftable by history strength — see _partial_safety_flags()."""
     history = context.get("history_candidates") or []
     cross = context.get("cross_user_safety_evidence") or []
     thin = (not history and not cross) or _media_uncertain(context)
@@ -167,6 +225,9 @@ def _adjust_confidence(confidence: float, context: dict, action: str) -> float:
             confidence = max(confidence, 0.75)
         elif action in ("notify", "digest") and engage_like / total >= 0.6:
             confidence = max(confidence, 0.75)
+
+    if _partial_safety_flags(context):
+        confidence = min(confidence, 0.65)
 
     return max(0.0, min(1.0, confidence))
 
@@ -199,6 +260,10 @@ def _validate_and_clean(data: dict, context: dict) -> dict:
     confidence = _adjust_confidence(confidence, context, action)
 
     reason = str(data.get("reason") or "").strip() or "No reason provided by model."
+    if action != "mute":
+        partial_flags = _partial_safety_flags(context)
+        if partial_flags:
+            reason = _ensure_reason_names_flags(reason, partial_flags)
 
     return {
         "action": action,
