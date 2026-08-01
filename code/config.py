@@ -31,3 +31,13 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 VISION_FALLBACK_PROVIDER = os.environ.get("VISION_FALLBACK_PROVIDER", "google")
 VISION_FALLBACK_MODEL = os.environ.get("VISION_FALLBACK_MODEL", "gemini-2.5-flash")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+
+# Same rationale as the vision fallback above, for the text router: Groq's
+# free-tier daily token quota (100000 TPD on llama-3.3-70b-versatile) is
+# reachable within a single full dataset run once other testing in the same
+# day has used part of it (reproduced directly: 429 on tokens per day mid-run
+# processing dataset/messages.csv). router.py falls back to a second provider
+# on exhausted Groq retries rather than blocking on a quota that won't clear
+# for hours.
+LLM_FALLBACK_PROVIDER = os.environ.get("LLM_FALLBACK_PROVIDER", "google")
+LLM_FALLBACK_MODEL = os.environ.get("LLM_FALLBACK_MODEL", "gemini-2.5-flash")

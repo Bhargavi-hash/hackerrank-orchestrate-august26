@@ -17,9 +17,17 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import time
 from pathlib import Path
 
-from config import GROQ_API_KEY, LLM_MODEL, LLM_PROVIDER
+from config import (
+    GOOGLE_API_KEY,
+    GROQ_API_KEY,
+    LLM_FALLBACK_MODEL,
+    LLM_FALLBACK_PROVIDER,
+    LLM_MODEL,
+    LLM_PROVIDER,
+)
 from rules import DOMAIN_AGE_RATIO_THRESHOLD, REPORT_RATE_OUTLIER_THRESHOLD
 
 logger = logging.getLogger("router")
@@ -68,7 +76,7 @@ Respond with ONLY this JSON object, no prose, no markdown fences:
 # confidence-adjustment rule) can't silently keep serving a decision the old
 # logic produced for an unchanged MessageContext — determinism is "same
 # input+logic -> same output", not "same input -> output frozen forever."
-_ROUTER_LOGIC_VERSION = "2"
+_ROUTER_LOGIC_VERSION = "4"
 
 
 def _context_hash(context: dict) -> str:
@@ -80,7 +88,7 @@ def _cache_path(context_hash: str) -> Path:
     return CACHE_DIR / f"{context_hash}.json"
 
 
-def _client():
+def _groq_client():
     if LLM_PROVIDER != "groq":
         raise NotImplementedError(f"LLM_PROVIDER={LLM_PROVIDER!r} not implemented; only 'groq' is wired up.")
     if not GROQ_API_KEY:
@@ -88,6 +96,120 @@ def _client():
     from groq import Groq
 
     return Groq(api_key=GROQ_API_KEY)
+
+
+def _retryable(exc: Exception) -> bool:
+    """Same pattern as media/image_processor.py: per-minute 429 (TPM) and 503
+    are transient, worth a short backoff. A 429 on the per-*day* quota (TPD)
+    is not — reproduced directly running main.py over the full dataset
+    (100000 TPD on llama-3.3-70b-versatile, exhausted by this session's own
+    testing) — retrying wouldn't clear for hours, so it's treated as
+    non-retryable and falls straight to the Gemini fallback instead."""
+    from groq import APIStatusError
+
+    if not isinstance(exc, APIStatusError):
+        return False
+    if exc.status_code == 429:
+        body = exc.body if isinstance(exc.body, dict) else {}
+        message = (body.get("error") or {}).get("message", "").lower()
+        if "per day" in message or "(tpd)" in message:
+            return False
+        return True
+    if exc.status_code == 503:
+        return True
+    return False
+
+
+def _retry_delay(exc: Exception, attempt: int) -> float:
+    response = getattr(exc, "response", None)
+    header = response.headers.get("retry-after") if response is not None else None
+    if header:
+        try:
+            return float(header)
+        except ValueError:
+            pass
+    return min(2**attempt, 30)
+
+
+def _call_with_retry(fn, max_attempts: int = 4):
+    for attempt in range(max_attempts):
+        try:
+            return fn()
+        except Exception as exc:
+            if not _retryable(exc) or attempt == max_attempts - 1:
+                raise
+            wait = _retry_delay(exc, attempt)
+            logger.warning(
+                "Groq router call failed (%s), retrying in %.1fs [attempt %d/%d]",
+                exc, wait, attempt + 1, max_attempts,
+            )
+            time.sleep(wait)
+
+
+def _call_groq(messages: list[dict]) -> str:
+    client = _groq_client()
+    resp = _call_with_retry(
+        lambda: client.chat.completions.create(
+            model=LLM_MODEL,
+            temperature=0,
+            response_format={"type": "json_object"},
+            messages=messages,
+        )
+    )
+    return resp.choices[0].message.content
+
+
+def _call_gemini(messages: list[dict]) -> str:
+    """Translates the OpenAI-style messages list (system/user/assistant) into
+    Gemini's system_instruction + contents format."""
+    if LLM_FALLBACK_PROVIDER != "google":
+        raise NotImplementedError(f"LLM_FALLBACK_PROVIDER={LLM_FALLBACK_PROVIDER!r} not implemented.")
+    if not GOOGLE_API_KEY:
+        raise RuntimeError("GOOGLE_API_KEY is not set (checked .env / environment).")
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=GOOGLE_API_KEY)
+    system_instruction = None
+    contents = []
+    for m in messages:
+        if m["role"] == "system":
+            system_instruction = m["content"]
+        elif m["role"] == "user":
+            contents.append(types.Content(role="user", parts=[types.Part.from_text(text=m["content"])]))
+        elif m["role"] == "assistant":
+            contents.append(types.Content(role="model", parts=[types.Part.from_text(text=m["content"])]))
+
+    resp = client.models.generate_content(
+        model=LLM_FALLBACK_MODEL,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=0,
+            response_mime_type="application/json",
+        ),
+    )
+    return resp.text
+
+
+def _call_llm(messages: list[dict]) -> tuple[str, str]:
+    """Returns (raw_json_text, provider_used). Tries Groq first; on exhausted
+    retries falls back to Gemini entirely rather than continuing to retry a
+    single point of failure. Raises only if both providers fail."""
+    try:
+        return _call_groq(messages), f"groq:{LLM_MODEL}"
+    except Exception as groq_exc:
+        logger.warning(
+            "Groq router exhausted retries (%s) -> falling back to %s:%s",
+            groq_exc, LLM_FALLBACK_PROVIDER, LLM_FALLBACK_MODEL,
+        )
+        try:
+            return _call_gemini(messages), f"{LLM_FALLBACK_PROVIDER}:{LLM_FALLBACK_MODEL}"
+        except Exception as fallback_exc:
+            logger.error(
+                "Both router providers failed: groq=%s, fallback=%s", groq_exc, fallback_exc,
+            )
+            raise
 
 
 def _media_uncertain(context: dict) -> bool:
@@ -292,20 +414,25 @@ def route(context: dict, rule_result: dict | None = None, max_attempts: int = 3)
         "rule_layer_outcome": rule_result or {"resolved": False},
     }
 
-    client = _client()
     last_error = None
     result = None
+    provider_used = None
+    # Guided retry, not blind retry: temperature=0 is not bit-identical across
+    # calls (a known API-level limitation, not a bug — see the caching
+    # rationale above), so a naive re-ask can get lucky or can just repeat the
+    # same invalid answer every time (reproduced deterministically on
+    # msg_004/business_004: the model anchors on the literal business.category
+    #="healthcare" field and invents "healthcare_update" by analogy to
+    # "business_update", identically on 3/3 blind attempts). Feeding the prior
+    # invalid response and the exact validation error back in makes the
+    # correction reliable instead of hoping for API noise to save it.
+    messages = [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": json.dumps(user_payload, default=str)},
+    ]
     for attempt in range(max_attempts):
-        resp = client.chat.completions.create(
-            model=LLM_MODEL,
-            temperature=0,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": json.dumps(user_payload, default=str)},
-            ],
-        )
-        raw = json.loads(resp.choices[0].message.content, strict=False)
+        raw_content, provider_used = _call_llm(messages)
+        raw = json.loads(raw_content, strict=False)
         try:
             result = _validate_and_clean(raw, context)
             break
@@ -315,11 +442,24 @@ def route(context: dict, rule_result: dict | None = None, max_attempts: int = 3)
                 "LLM output failed enum validation (%s), retrying [attempt %d/%d]",
                 exc, attempt + 1, max_attempts,
             )
+            messages.append({"role": "assistant", "content": raw_content})
+            messages.append({
+                "role": "user",
+                "content": (
+                    f"That response was invalid: {exc}. action must be exactly one of "
+                    f"{sorted(VALID_ACTIONS)}; message_type must be exactly one of "
+                    f"{sorted(VALID_MESSAGE_TYPES)} — do not invent a new category even if it "
+                    f"seems more specific (e.g. a healthcare business's category field does not "
+                    f"mean message_type should be a healthcare-specific value; use business_update). "
+                    f"Respond again with the same JSON schema, corrected."
+                ),
+            })
     if result is None:
         raise RuntimeError(f"LLM router failed enum validation after {max_attempts} attempts: {last_error}")
 
+    logger.info("router decision complete context_hash=%s provider=%s", ctx_hash[:16], provider_used)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(
-        json.dumps({"context_hash": ctx_hash, "model": LLM_MODEL, "result": result}, indent=2)
+        json.dumps({"context_hash": ctx_hash, "provider": provider_used, "result": result}, indent=2)
     )
     return result
