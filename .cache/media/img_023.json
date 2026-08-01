@@ -1,0 +1,24 @@
+{
+  "media_id": "img_023",
+  "provider": "google:gemini-2.5-flash",
+  "result": {
+    "extracted_text": "MISSING PERSON Missing from: 4-11-2025 AGE: 16 NAME:- MELWYN Door number 9 first Amani first cross Kasturi Nagar East of NGEF Landmark Hyderabad Irani tea shop Plz help contacts:- 7348978260 / 9686674558 / 9741011528 MISSING PERSON",
+    "structured": {
+      "title": "MISSING PERSON",
+      "date": "4-11-2025",
+      "time": null,
+      "location": "Door number 9 first Amani first cross Kasturi Nagar East of NGEF Landmark Hyderabad Irani tea shop",
+      "deadline": null,
+      "payment_request": false,
+      "urgency_cues": [
+        "Plz help"
+      ],
+      "is_poster_or_flyer": true,
+      "is_receipt": false,
+      "is_screenshot": false,
+      "has_qr_code": false,
+      "has_payment_link": false,
+      "price": null
+    }
+  }
+}

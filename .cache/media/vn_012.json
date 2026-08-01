@@ -1,0 +1,16 @@
+{
+  "media_id": "vn_012",
+  "model": "whisper-large-v3",
+  "result": {
+    "extracted_text": "I have kept the blue jacket aside for you. If you still want it, please confirm before I show it to someone else.",
+    "structured": {
+      "title": null,
+      "date": null,
+      "time": null,
+      "location": null,
+      "deadline": null,
+      "payment_request": false,
+      "urgency_cues": []
+    }
+  }
+}

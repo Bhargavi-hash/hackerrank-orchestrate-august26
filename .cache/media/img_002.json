@@ -1,0 +1,25 @@
+{
+  "media_id": "img_002",
+  "provider": "google:gemini-2.5-flash",
+  "result": {
+    "extracted_text": "WATCH THE BIGGEST CINEMATIC EPIC IN\n4DX MX4D\nAT AN UNBEATABLE PRICE\nTICKETS\nNOW STARTING AT\n\u20b9199\nONLY ON 21ST JUL'26\nA FILM BY CHRISTOPHER NOLAN\nTHE ODYSSEY\n17.07.26\nBOOK SHOWS WITH IMAX FILM CAMERAS\nPVR INOX\nFOR BOOKINGS VISIT PVR OR INOX WEBSITE / APP\n*OFFER APPLICABLE IN SELECT CITIES, CINEMAS & SHOWS. OTHER T&C APPLY.",
+    "structured": {
+      "title": "THE ODYSSEY",
+      "date": "21ST JUL'26, 17.07.26",
+      "time": null,
+      "location": "PVR INOX",
+      "deadline": "21ST JUL'26",
+      "payment_request": true,
+      "urgency_cues": [
+        "ONLY ON 21ST JUL'26",
+        "UNBEATABLE PRICE"
+      ],
+      "is_poster_or_flyer": true,
+      "is_receipt": false,
+      "is_screenshot": false,
+      "has_qr_code": false,
+      "has_payment_link": false,
+      "price": "\u20b9199"
+    }
+  }
+}

@@ -2,18 +2,24 @@
 context_builder.py — deterministic context assembly (ARCHITECTURE.md §2-3).
 
 Joins every dataset/*.csv into one MessageContext dict per row of messages.csv.
-No LLM/VLM/ASR calls here — media OCR/ASR extraction belongs to
-media/image_processor.py and media/voice_processor.py (§4); this module only
-resolves the media file path and leaves extraction fields for that pipeline
-to fill in.
+The only LLM-adjacent calls here are OCR/ASR (§2 exception), delegated to
+media/image_processor.py and media/voice_processor.py, each cached by
+media_id so a message never re-transcribes/re-OCRs media shared with an
+earlier message.
 """
 
 from __future__ import annotations
 
 import csv
+import logging
 import re
 from pathlib import Path
 from typing import Any
+
+from media.image_processor import process_image
+from media.voice_processor import process_voice
+
+logger = logging.getLogger("context_builder")
 
 DATASET_DIR = Path(__file__).resolve().parent.parent / "dataset"
 HISTORY_CAP = 5
@@ -187,19 +193,53 @@ def _cross_user_safety_evidence(message: dict, ds: Dataset) -> list[dict]:
 def _media(message: dict, ds: Dataset) -> dict:
     media_type = message["media_type"] or None
     file_path = None
+    extracted_text = None
+    structured = None
+    media_extraction_failed = False
+
     if media_type == "image":
         row = ds.images.get(message["media_id"])
         file_path = row["file_path"] if row else None
+        if file_path:
+            try:
+                result = process_image(message["media_id"], file_path)
+                extracted_text = result["extracted_text"]
+                structured = result["structured"]
+            except Exception:
+                logger.warning(
+                    "image extraction failed for media_id=%s (message_id=%s); "
+                    "leaving extracted_text=None, extraction_failed=True",
+                    message["media_id"], message["message_id"], exc_info=True,
+                )
+                media_extraction_failed = True
     elif media_type == "voice":
         row = ds.voice_notes.get(message["media_id"])
         file_path = row["file_path"] if row else None
+        if file_path:
+            try:
+                result = process_voice(message["media_id"], file_path)
+                extracted_text = result["extracted_text"]
+                structured = result["structured"]
+            except Exception:
+                logger.warning(
+                    "voice extraction failed for media_id=%s (message_id=%s); "
+                    "leaving extracted_text=None, extraction_failed=True",
+                    message["media_id"], message["message_id"], exc_info=True,
+                )
+                media_extraction_failed = True
+
     return {
         "type": media_type,
         "file_path": file_path,
-        # Filled by media/image_processor.py or media/voice_processor.py (§4),
-        # cached by media_id. context_builder does no OCR/ASR itself.
-        "extracted_text": None,
-        "structured": None,
+        "extracted_text": extracted_text,
+        "structured": structured,
+        # Distinct from "no media" (type is None) and from "extraction
+        # succeeded but found nothing" (extracted_text == "", e.g. img_008).
+        # True only when process_image/process_voice raised after retries —
+        # rules.py must treat this the same as a genuinely-pending transcript
+        # (skip language-dependent conditions, fall through to the LLM), not
+        # as "no urgency/payment language found".
+        "media_extraction_failed": media_extraction_failed,
     }
 
 

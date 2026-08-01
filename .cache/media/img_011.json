@@ -1,0 +1,22 @@
+{
+  "media_id": "img_011",
+  "provider": "google:gemini-2.5-flash",
+  "result": {
+    "extracted_text": "FIELD TRIP CONSENT FORM\n________________________________ has permission to participate in a planned field trip activity.\nTRIP DESTINATION: ________________________________ DATE: ____________________ 20____\nDEPARTURE TIME: ________________________________ RETURN TIME: ____________________\nTransportation will be provided by ________ school bus, ________ student.\n____________________________________________________ ____________________________________________________\n(Signature of Parent/Guardian) (Date of Signature)\n____________________________________________________ ____________________________________________________\n(Address) (Telephone Number)\nIn granting this permission, I assume full responsibility for any damage to person or property caused\nby my child or ward. Further, I hereby expressly waive any claim for liability against the Board of\nEducation, Swartz Creek Community Schools, including its employees and representatives. I further\nexpressly agree that in a disciplinary action, at the discretion of the sponsor(s), my child or ward may\nbe returned home at my expense.\nFIELD TRIP CONSENT FORM\n________________________________ has permission to participate in a planned field trip activity.\nTRIP DESTINATION: ________________________________ DATE: ____________________ 20____\nDEPARTURE TIME: ________________________________ RETURN TIME: ____________________\nTransportation will be provided by ________ school bus, ________ student.\n____________________________________________________ ____________________________________________________\n(Signature of Parent/Guardian) (Date of Signature)\n____________________________________________________ ____________________________________________________\n(Address) (Telephone Number)\nIn granting this permission, I assume full responsibility for any damage to person or property caused\nby my child or ward. Further, I hereby expressly waive any claim for liability against the Board of\nEducation, Swartz Creek Community Schools, including its employees and representatives. I further\nexpressly agree that in a disciplinary action, at the discretion of the sponsor(s), my child or ward may\nbe returned home at my expense.",
+    "structured": {
+      "title": "FIELD TRIP CONSENT FORM",
+      "date": null,
+      "time": null,
+      "location": null,
+      "deadline": null,
+      "payment_request": false,
+      "urgency_cues": [],
+      "is_poster_or_flyer": false,
+      "is_receipt": false,
+      "is_screenshot": false,
+      "has_qr_code": false,
+      "has_payment_link": false,
+      "price": null
+    }
+  }
+}

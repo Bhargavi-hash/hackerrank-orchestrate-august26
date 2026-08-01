@@ -1,0 +1,11 @@
+{
+  "context_hash": "bc3e3c37e8e136b8abb005bb9e9d9f47d362ba6bd98b271c85387305a6049db6",
+  "model": "llama-3.3-70b-versatile",
+  "result": {
+    "action": "mute",
+    "message_type": "scam",
+    "reason": "The message contains urgency cues and a payment request, but the user has previously reported and muted similar messages from this group, indicating a potential scam. The extracted text from the image also contains a promotional tone and a deadline, which may be an attempt to create a sense of urgency.",
+    "confidence": 0.8,
+    "evidence_message_ids": "message_0087;message_0183;message_0201;message_0184;message_0088"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "media_id": "img_008",
+  "model": "qwen/qwen3.6-27b",
+  "result": {
+    "extracted_text": "",
+    "structured": {
+      "title": null,
+      "date": null,
+      "time": null,
+      "location": null,
+      "deadline": null,
+      "payment_request": false,
+      "urgency_cues": [],
+      "is_poster_or_flyer": false,
+      "is_receipt": false,
+      "is_screenshot": false,
+      "has_qr_code": false,
+      "has_payment_link": false,
+      "price": null
+    }
+  }
+}

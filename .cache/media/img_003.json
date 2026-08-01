@@ -1,0 +1,22 @@
+{
+  "media_id": "img_003",
+  "provider": "google:gemini-2.5-flash",
+  "result": {
+    "extracted_text": "Happy Holidayers\nTRAVEL. EXPLORE. ENJOY\nLADAKH\nTOUR PACKAGES\nEXPERIENCE THE MAGIC OF LADAKH\nUP TO\n40%\nOFF\nSIGHTSEEING\nTRANSFERS\nMEALS\nSTAY\nBOOK NOW\n+\n+91 98056 07657\n20K+\nTravellers\n10K+\nHotels\n5K+\nTours\n06+\nOffices\nwww.happyholidayers.com",
+    "structured": {
+      "title": "LADAKH TOUR PACKAGES",
+      "date": null,
+      "time": null,
+      "location": "LADAKH",
+      "deadline": null,
+      "payment_request": false,
+      "urgency_cues": [],
+      "is_poster_or_flyer": true,
+      "is_receipt": false,
+      "is_screenshot": false,
+      "has_qr_code": false,
+      "has_payment_link": true,
+      "price": "UP TO 40% OFF"
+    }
+  }
+}

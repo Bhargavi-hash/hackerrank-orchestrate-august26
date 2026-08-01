@@ -1,0 +1,16 @@
+{
+  "media_id": "vn_005",
+  "model": "whisper-large-v3",
+  "result": {
+    "extracted_text": "Checkout errors are still spiking again. Please join the incident bridge now. Payments are failing for live users.",
+    "structured": {
+      "title": null,
+      "date": null,
+      "time": null,
+      "location": null,
+      "deadline": null,
+      "payment_request": true,
+      "urgency_cues": []
+    }
+  }
+}

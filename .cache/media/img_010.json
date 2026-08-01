@@ -1,0 +1,24 @@
+{
+  "media_id": "img_010",
+  "model": "qwen/qwen3.6-27b",
+  "result": {
+    "extracted_text": "amazon\nPrime Day\nUP TO 60% OFF\n2X CASHBACK\n24-30 JUNE\nUP TO\n11.2%\nCASHBACK\nEXCLUSIVE ON\nSHOPCASH",
+    "structured": {
+      "title": "Prime Day",
+      "date": "24-30 JUNE",
+      "time": null,
+      "location": null,
+      "deadline": "24-30 JUNE",
+      "payment_request": false,
+      "urgency_cues": [
+        "24-30 JUNE"
+      ],
+      "is_poster_or_flyer": true,
+      "is_receipt": false,
+      "is_screenshot": false,
+      "has_qr_code": false,
+      "has_payment_link": false,
+      "price": null
+    }
+  }
+}

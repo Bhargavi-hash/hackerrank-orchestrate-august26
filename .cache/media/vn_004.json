@@ -1,0 +1,16 @@
+{
+  "media_id": "vn_004",
+  "model": "whisper-large-v3",
+  "result": {
+    "extracted_text": "Hi, this is from School Transport. Today's pickup will be from gate 2 instead of the main gate. Please reach by 3.40.",
+    "structured": {
+      "title": null,
+      "date": null,
+      "time": "3.40",
+      "location": null,
+      "deadline": "Today",
+      "payment_request": false,
+      "urgency_cues": []
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "media_id": "vn_006",
+  "model": "whisper-large-v3",
+  "result": {
+    "extracted_text": "Can you check the onboarding doc tomorrow morning? Nothing urgent. I just want your comments before lunch.",
+    "structured": {
+      "title": null,
+      "date": null,
+      "time": null,
+      "location": null,
+      "deadline": "tomorrow",
+      "payment_request": false,
+      "urgency_cues": [
+        "urgent"
+      ]
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "media_id": "vn_008",
+  "model": "whisper-large-v3",
+  "result": {
+    "extracted_text": "Your bank account will be blocked today. Share the OTP you received so we can complete verification immediately.",
+    "structured": {
+      "title": null,
+      "date": null,
+      "time": null,
+      "location": null,
+      "deadline": "today",
+      "payment_request": true,
+      "urgency_cues": [
+        "immediately"
+      ]
+    }
+  }
+}

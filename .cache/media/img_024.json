@@ -1,0 +1,22 @@
+{
+  "media_id": "img_024",
+  "provider": "google:gemini-2.5-flash",
+  "result": {
+    "extracted_text": "Nifty 50 - D - 1% - CMP: 15863.20(-2.35%) - 07-03-2022 Nifty 50, Spot, Daily 1% Brick Size, Renko Chart Price breaks the prior swing low which is a sign of bearishness. The negative crossover in the moving averages confirms short-term weakness 17879 16804 16021.26 15730 14656 13581 12507 11432 10358 9284 8209 Disparity (40,1,EMA,Close)DI: -5.36Avg: -5.36 10.00 5.00 .00 -5.36 -10.00",
+    "structured": {
+      "title": "Nifty 50, Spot, Daily",
+      "date": "07-03-2022",
+      "time": null,
+      "location": null,
+      "deadline": null,
+      "payment_request": false,
+      "urgency_cues": [],
+      "is_poster_or_flyer": false,
+      "is_receipt": false,
+      "is_screenshot": true,
+      "has_qr_code": false,
+      "has_payment_link": false,
+      "price": "15863.20"
+    }
+  }
+}

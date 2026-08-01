@@ -1,0 +1,11 @@
+{
+  "context_hash": "09b50e660eb666b9329b07d89b23f413161c7c828227ae4b6657d79bfb6f7aa5",
+  "model": "llama-3.3-70b-versatile",
+  "result": {
+    "action": "mute",
+    "message_type": "spam",
+    "reason": "The message contains a suspicious request to forward the message to multiple people, and the user has previously muted the group and dismissed similar messages, indicating a low engagement and potential annoyance with such content.",
+    "confidence": 0.8,
+    "evidence_message_ids": "message_0136;message_0135"
+  }
+}

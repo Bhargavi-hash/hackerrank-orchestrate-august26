@@ -1,0 +1,16 @@
+{
+  "media_id": "vn_009",
+  "model": "whisper-large-v3",
+  "result": {
+    "extracted_text": "Your airport pickup for tomorrow has moved to 6.15 am. The driver and hotel booking remain the same.",
+    "structured": {
+      "title": null,
+      "date": null,
+      "time": "6.15 am",
+      "location": null,
+      "deadline": "tomorrow",
+      "payment_request": false,
+      "urgency_cues": []
+    }
+  }
+}

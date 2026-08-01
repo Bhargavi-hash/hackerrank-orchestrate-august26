@@ -1,0 +1,11 @@
+{
+  "context_hash": "85cbfd60dbf81f93f5b29f6b53889a907f41f41de778158f33d5d87420d90742",
+  "model": "llama-3.3-70b-versatile",
+  "result": {
+    "action": "notify",
+    "message_type": "urgent",
+    "reason": "The message is from a verified business with which the user has a confirmed travel booking history, and the content is about a change in airport pickup time, indicating a need for timely notification. The user's past engagement with similar messages also supports notification.",
+    "confidence": 0.9,
+    "evidence_message_ids": "message_0222"
+  }
+}

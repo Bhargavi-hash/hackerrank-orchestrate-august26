@@ -1,0 +1,22 @@
+{
+  "media_id": "img_012",
+  "model": "qwen/qwen3.6-27b",
+  "result": {
+    "extracted_text": "INDIAN INSTITUTE OF TECHNOLOGY BOMBAY\nINDUSTRIAL RESEARCH AND CONSULTANCY CENTER (IRCC)\n\nIIT BOMBAY RESEARCH INTERNSHIP 2023-24\n\nIndian Institute of Technology Bombay (IIT Bombay) offers opportunity for Research Internship to eligible students for early exposure of Research and Development (R&D) in Science, Technology and related emerging areas. This full-time research internship is awarded to bright students every academic year on challenging research projects to be floated by the IIT Bombay faculty. Selection of the Interns are done in response to the applications made by the prospecting candidates on the basis of their respective academic record and performance in the interview to be conducted by the respective faculty member of the Institute. The duration of the IRCC-IR-internship 2023-24 will be for a period between four to six months (from December 2023 and June 2024)\n\nEligibility:\nThe prospecting applicant is required to -\nbe in the Second year of his/her Master degree program, or third / fourth year of his/her Bachelor degree program.\nsubmit application in accordance with his/her branch / discipline of study and in accordance with the project requirement specified by the IIT Bombay Faculty (Internship Guide).\nbe among the top 10% in all the previous years in his/her discipline in the College / University / Institute. A certificate from the principal (in the prescribed format) to this effect is required to be submitted along with the application.\na full-time student while applying and till the completion of the Internship programme. S/He may submit a partial project report before (e.g., in April) the completion of the Internship (e.g., in June) if the academic calendar of his/her College /Institute / University requires him/her to do so, with the due prior consent of the Internship Guide of IIT Bombay.\nbe able to work full-time for the Internship programme. Part-time internship is not allowed. A certificate from the principal to the effect that there is no course work requirement during the internship period has to be submitted at the time of application.\n\nDetailed information about the IRCC-IR-Internship programme is available on the Institute website - https://www.ircc.iitb.ac.in/IRCC-Webpage/IITBInternship/.\nFor any enquiry you may send e-mail to internship@ircc.iitb.ac.in\n\nWith best regards\nSr. Assistant Registrar, IRCC",
+    "structured": {
+      "title": "IIT BOMBAY RESEARCH INTERNSHIP 2023-24",
+      "date": "2023-24",
+      "time": null,
+      "location": "Indian Institute of Technology Bombay",
+      "deadline": null,
+      "payment_request": false,
+      "urgency_cues": [],
+      "is_poster_or_flyer": true,
+      "is_receipt": false,
+      "is_screenshot": false,
+      "has_qr_code": false,
+      "has_payment_link": false,
+      "price": null
+    }
+  }
+}

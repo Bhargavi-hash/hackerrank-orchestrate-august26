@@ -1,0 +1,22 @@
+{
+  "media_id": "img_004",
+  "provider": "google:gemini-2.5-flash",
+  "result": {
+    "extracted_text": "Incident Review\nFriday, August 7 \u2022 12:00 \u2013 12:50pm\nTake meeting notes\nStart a new document to capture notes\n3 guests\n1 yes virtually\n2 awaiting\nShloka Shah\nOrganizer\nHome - Edit\nAkarsh Jain\nPawan K\nHome\n10 minutes before\nShloka Shah\nGoing?\nYes\nNo\nMaybe",
+    "structured": {
+      "title": "Incident Review",
+      "date": "Friday, August 7",
+      "time": "12:00 \u2013 12:50pm",
+      "location": null,
+      "deadline": null,
+      "payment_request": false,
+      "urgency_cues": [],
+      "is_poster_or_flyer": false,
+      "is_receipt": false,
+      "is_screenshot": true,
+      "has_qr_code": false,
+      "has_payment_link": false,
+      "price": null
+    }
+  }
+}

@@ -77,10 +77,20 @@ def _text_blob(context: dict) -> str:
 
 
 def _media_pending(context: dict) -> bool:
-    """True when the message has media but it hasn't been OCR'd/transcribed yet
-    (extracted_text is None) — language-based conditions can't be evaluated."""
+    """True when the message has media but its text isn't available yet for
+    language-dependent conditions — either because it hasn't been processed
+    (extracted_text is None) or because processing was attempted and failed
+    (media_extraction_failed=True, set by context_builder when process_image/
+    process_voice raised after exhausting retries). Both cases must fall
+    through the same way: skip language checks, don't finalize a rule,
+    defer to the LLM — a failed OCR/ASR call is not evidence of "no
+    urgency/payment language found"."""
     media = context.get("media") or {}
-    return media.get("type") is not None and media.get("extracted_text") is None
+    if media.get("type") is None:
+        return False
+    if media.get("media_extraction_failed"):
+        return True
+    return media.get("extracted_text") is None
 
 
 def _infer_message_type(text: str, conv_type: str) -> str:
@@ -137,15 +147,21 @@ def rule_1_scam_domain(context: dict) -> dict | None:
 
     if _media_pending(context):
         media_type = context["media"]["type"]
+        failed = context["media"].get("media_extraction_failed")
+        status = (
+            f"{'OCR' if media_type == 'image' else 'ASR'} extraction failed (media_extraction_failed=true)"
+            if failed
+            else f"message has un-transcribed {media_type} media"
+        )
         return {
             "resolved": False,
             "pending": True,
             "rule": 1,
             "note": (
                 f"Domain signal present (domain_used_by_sender={business['domain_used_by_sender']} "
-                f"vs official_domain={business['official_domain']}) but message has un-transcribed "
-                f"{media_type} media; cannot evaluate payment/urgency language yet. Pending re-check "
-                f"once media/{'image' if media_type == 'image' else 'voice'}_processor.py exists."
+                f"vs official_domain={business['official_domain']}) but {status}; cannot evaluate "
+                f"payment/urgency language. Deferring to LLM router rather than resolving on the "
+                f"domain signal alone."
             ),
         }
 

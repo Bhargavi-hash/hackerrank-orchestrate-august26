@@ -1,0 +1,11 @@
+{
+  "context_hash": "127760318d5f98feda0fab6bccd315ce185dc84445d7bdffd384a270b9326ffc",
+  "model": "llama-3.3-70b-versatile",
+  "result": {
+    "action": "mute",
+    "message_type": "scam",
+    "reason": "The message contains a suspicious QR code and a sense of urgency to pay a penalty, which is similar to previous messages that the user has reported or muted, such as message_0151 and message_0152, suggesting a potential scam.",
+    "confidence": 0.8,
+    "evidence_message_ids": "message_0151;message_0152;message_0237"
+  }
+}

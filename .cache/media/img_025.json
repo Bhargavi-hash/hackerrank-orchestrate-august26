@@ -1,0 +1,22 @@
+{
+  "media_id": "img_025",
+  "provider": "google:gemini-2.5-flash",
+  "result": {
+    "extracted_text": "Ingoude Company LAND PLOT FOR SALE Secure your dream investment! Prime land plots available strategic location high value future growth Contact Us +123-456-7890 www.reallygreatsite.com",
+    "structured": {
+      "title": "LAND PLOT FOR SALE",
+      "date": null,
+      "time": null,
+      "location": null,
+      "deadline": null,
+      "payment_request": false,
+      "urgency_cues": [],
+      "is_poster_or_flyer": true,
+      "is_receipt": false,
+      "is_screenshot": false,
+      "has_qr_code": false,
+      "has_payment_link": false,
+      "price": null
+    }
+  }
+}
