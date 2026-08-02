@@ -446,7 +446,13 @@ def rule_6_repetition(context: dict) -> dict | None:
     except ValueError:
         forwarded = 0
     text = _text_blob(context)
-    if forwarded > 0:
+    if reaction.get("message_reported") == "1":
+        # A direct prior report from this same user on the matched duplicate
+        # is stronger evidence than a forward count or a promo keyword match
+        # — checked first, ahead of both, not just ahead of the
+        # _infer_message_type() fallback.
+        message_type = "scam"
+    elif forwarded > 0:
         message_type = "forward"
     elif _has_signal(text, _PROMO_KEYWORDS):
         message_type = "spam"
