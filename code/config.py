@@ -29,21 +29,19 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 # falls back to a second provider entirely rather than retrying the same
 # single point of failure.
 #
-# gemini-2.5-flash-lite, not gemini-2.5-flash: Gemini's free-tier quota is
-# tracked per model (confirmed directly from a 429 error body naming
-# "model: gemini-2.5-flash" as the quota dimension, quotaValue 20/day — we
-# exhausted that in one afternoon of testing). Different flash variants carry
-# independent quotas — verified empirically (gemini-2.5-flash-lite and
-# gemini-flash-lite-latest both answered live after gemini-2.5-flash and
-# gemini-2.0-flash were separately exhausted) since the official docs page
-# doesn't publish per-model free-tier RPD figures (JS-rendered dashboard, not
-# in the static page). flash-lite is also the tier Google positions for
-# higher-throughput/free-tier use, and produced equivalent-quality output on
-# a real OCR test (img_003) and a real routing-decision test before being
-# adopted here.
+# GEMINI_API_KEY, not GOOGLE_API_KEY: a separate Google account/project,
+# confirmed genuinely distinct (not just a renamed duplicate) because it 404s
+# on gemini-2.5-flash/-flash-lite with "no longer available to new users" —
+# a different model lineup than the GOOGLE_API_KEY account, not a shared
+# quota pool wearing a different name. gemini-flash-lite-latest is the model
+# actually available and unexhausted on this account (verified live: several
+# other candidates 404'd or were already 429 on this same key). Falls back to
+# GOOGLE_API_KEY/gemini-2.5-flash-lite if GEMINI_API_KEY isn't set, so this
+# still works with only the original credential. Quality checked directly
+# (a real OCR call on img_003, a real routing-decision call) before adoption.
 VISION_FALLBACK_PROVIDER = os.environ.get("VISION_FALLBACK_PROVIDER", "google")
-VISION_FALLBACK_MODEL = os.environ.get("VISION_FALLBACK_MODEL", "gemini-2.5-flash-lite")
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+VISION_FALLBACK_MODEL = os.environ.get("VISION_FALLBACK_MODEL", "gemini-flash-lite-latest")
+GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
 # Same rationale as the vision fallback above, for the text router: Groq's
 # free-tier daily token quota (100000 TPD on llama-3.3-70b-versatile) is
@@ -51,8 +49,8 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 # day has used part of it (reproduced directly: 429 on tokens per day mid-run
 # processing dataset/messages.csv). router.py falls back to a second provider
 # on exhausted Groq retries rather than blocking on a quota that won't clear
-# for hours. Same gemini-2.5-flash-lite swap as the vision fallback, same
-# per-model-quota reasoning — the *primary* router model (LLM_MODEL, Groq)
-# is intentionally left alone; only this fallback tier changed.
+# for hours. Same GEMINI_API_KEY/gemini-flash-lite-latest swap as the vision
+# fallback, same reasoning — the *primary* router model (LLM_MODEL, Groq) is
+# intentionally left alone; only this fallback tier changed.
 LLM_FALLBACK_PROVIDER = os.environ.get("LLM_FALLBACK_PROVIDER", "google")
-LLM_FALLBACK_MODEL = os.environ.get("LLM_FALLBACK_MODEL", "gemini-2.5-flash-lite")
+LLM_FALLBACK_MODEL = os.environ.get("LLM_FALLBACK_MODEL", "gemini-flash-lite-latest")

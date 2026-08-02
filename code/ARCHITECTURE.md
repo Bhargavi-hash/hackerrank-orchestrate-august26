@@ -180,6 +180,14 @@ bias, not left to model discretion.
 None of these thresholds are hand-tuned "magic numbers" dressed up as a formula — each is a direct,
 explainable read of one or two real columns, stated as such in the `reason` output.
 
+**Disclosed deviation — rule 3's `scam`/`spam` choice.** The table above leaves this as "`scam` or
+`spam`" without specifying which. The implementation ties it to a second real column rather than
+defaulting to one or the other arbitrarily: `scam` when `domain_used_by_sender != official_domain` is
+also true (report-rate outlier + a spoofed domain), `spam` when the domain is legitimate (report-rate
+outlier alone — spammy/annoying, not necessarily impersonating anyone). This is better reasoning than a
+flat default and is called out here so it reads as an intentional refinement of the spec, not a silent
+divergence from it.
+
 **Reason strings for rule hits must be value-interpolated templates, not free text.** Since these
 decisions are fully deterministic, the reason should literally substitute the real column values rather
 than restate the rule in generic prose — e.g. `"Sender domain {domain_used_by_sender} does not match

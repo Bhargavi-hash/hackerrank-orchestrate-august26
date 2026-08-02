@@ -13,6 +13,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from context_builder import HISTORY_CAP
+
 # --- thresholds, derived from dataset/business_accounts.csv, not hand-picked ---
 
 # IQR outlier threshold (Q3 + 1.5*IQR) over report_rate = user_reports_30d /
@@ -23,6 +25,23 @@ REPORT_RATE_OUTLIER_THRESHOLD = 0.0122
 # business_accounts.csv: a low cluster at 0.09-0.48 and a legitimate cluster
 # at 0.78+, with a clean gap between them. 0.6 sits in that gap.
 DOMAIN_AGE_RATIO_THRESHOLD = 0.6
+
+# forwarded_count across messages.csv + message_history.csv (522 rows) is too
+# zero-inflated for a population-wide IQR (87% are 0, so Q1=Q3=0 — degenerate).
+# Restricting to the 69 nonzero rows doesn't work either: the top quartile is
+# saturated at the max value (12, tied 18x), so Q3+1.5*IQR = 27, a threshold
+# higher than any value that occurs — nothing would ever qualify. The nonzero
+# distribution is bimodal instead, same shape as the domain-age-ratio case
+# above: a low cluster at 1-4 (occasional single forwards) and a high cluster
+# at 7-12 (systematic mass-forward chain messages, with 12 alone occurring 18
+# times), separated by a sparse valley at 5-6 (1 occurrence each). 7 sits at
+# the start of that high cluster.
+FORWARDED_COUNT_OUTLIER_THRESHOLD = 7
+
+# Matches context_builder.py's tier-1 HISTORY_CAP for consistency — the
+# router shouldn't see a wall of 15+ evidence IDs when 5 well-chosen ones
+# make the same point.
+MUTE_EVIDENCE_CAP = HISTORY_CAP
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _STOPWORDS = {
@@ -109,6 +128,37 @@ def _infer_message_type(text: str, conv_type: str) -> str:
     return "unknown"
 
 
+def _evidence_severity_lookup(context: dict) -> dict[str, tuple[int, str]]:
+    """message_id -> (severity_rank, created_at) for every history_candidates/
+    cross_user_safety_evidence entry in this context. severity: 0=reported,
+    1=muted-only, 2=neither (e.g. a rule-6 duplicate-content match that was
+    merely ignored, not reported/muted). Shared by _mute_supporting_ids and
+    apply_rules()'s final-cap step so both rank consistently."""
+    lookup: dict[str, tuple[int, str]] = {}
+    for h in context.get("history_candidates") or []:
+        reaction = h.get("reaction") or {}
+        reported = reaction.get("message_reported") == "1"
+        muted = reaction.get("muted_after_message") == "1"
+        severity = 0 if reported else (1 if muted else 2)
+        lookup[h["message_id"]] = (severity, h.get("created_at") or "")
+    # cross_user_safety_evidence is already filtered to reported/muted rows by context_builder.
+    for c in context.get("cross_user_safety_evidence") or []:
+        reaction = c.get("reaction") or {}
+        severity = 0 if reaction.get("message_reported") == "1" else 1
+        lookup[c["message_id"]] = (severity, c.get("created_at") or "")
+    return lookup
+
+
+def _rank_and_cap_ids(ids: list[str], lookup: dict[str, tuple[int, str]], cap: int) -> list[str]:
+    """Dedup, then sort by severity (reported before muted-only before
+    neither) with most-recent-first as the tiebreak, then truncate to cap.
+    IDs missing from lookup (shouldn't happen, but defensive) sort last."""
+    unique_ids = list(dict.fromkeys(ids))
+    unique_ids.sort(key=lambda mid: lookup.get(mid, (3, ""))[1], reverse=True)  # recency desc
+    unique_ids.sort(key=lambda mid: lookup.get(mid, (3, ""))[0])  # severity asc, stable
+    return unique_ids[:cap]
+
+
 def _mute_supporting_ids(context: dict) -> list[str]:
     """Every history_candidates/cross_user_safety_evidence entry whose own
     reaction directly corroborates a mute decision (message_reported==1 or
@@ -116,16 +166,16 @@ def _mute_supporting_ids(context: dict) -> list[str]:
     rule that resolves to mute, regardless of which specific condition inside
     that rule actually fired — a scam/report-rate/opt-out/repetition finding
     should cite real supporting history when it exists, not just the columns
-    that happened to trip the rule's own threshold."""
-    ids = []
-    for h in context.get("history_candidates") or []:
-        reaction = h.get("reaction") or {}
-        if reaction.get("message_reported") == "1" or reaction.get("muted_after_message") == "1":
-            ids.append(h["message_id"])
-    # cross_user_safety_evidence is already filtered to reported/muted rows by context_builder.
-    for c in context.get("cross_user_safety_evidence") or []:
-        ids.append(c["message_id"])
-    return ids
+    that happened to trip the rule's own threshold.
+
+    Capped at MUTE_EVIDENCE_CAP (message_reported==1 entries preferred over
+    muted_after_message==1-only, most-recent-first within a tier) — but this
+    caps only this function's own contribution. apply_rules() applies the
+    same cap again to the final merged list (this plus whatever the rule
+    itself already cited), since the two combined can still exceed the cap."""
+    lookup = _evidence_severity_lookup(context)
+    supporting_ids = [mid for mid, (severity, _created_at) in lookup.items() if severity in (0, 1)]
+    return _rank_and_cap_ids(supporting_ids, lookup, MUTE_EVIDENCE_CAP)
 
 
 # --- rule 1: scam domain + payment/urgency language -------------------------
@@ -250,6 +300,12 @@ def rule_3_report_rate_outlier(context: dict) -> dict | None:
         return None
 
     domain_mismatch = business["domain_used_by_sender"] != business["official_domain"]
+    # ARCHITECTURE.md §5 leaves rule 3's message_type as "scam or spam" without
+    # specifying which; ties the choice to a second real column (domain match)
+    # instead of an arbitrary default, so a high report rate WITH a spoofed
+    # domain reads as scam and a high report rate alone (legitimate domain,
+    # just spammy/annoying) reads as spam. Deliberate deviation from the flat
+    # spec wording, disclosed here and in ARCHITECTURE.md §5, not silent.
     message_type = "scam" if domain_mismatch else "spam"
     if rate >= REPORT_RATE_OUTLIER_THRESHOLD * 4:
         confidence = 0.9
@@ -303,16 +359,25 @@ def rule_4_5_muted_group(context: dict) -> dict | None:
         forwarded = int(context["message"].get("forwarded_count") or 0)
     except ValueError:
         forwarded = 0
+    conv_type = context["message"]["conversation_type"]
 
-    if forwarded > 0:
+    if forwarded >= FORWARDED_COUNT_OUTLIER_THRESHOLD:
+        # Content classification runs first; "forward" is only the fallback
+        # label when content itself gives no better fit (_infer_message_type
+        # returns "unknown") — forwarding volume alone doesn't override a
+        # message that clearly reads as e.g. a promotion or greeting, it just
+        # decides mute-vs-digest at this outlier level.
+        inferred_type = _infer_message_type(text, conv_type)
+        message_type = "forward" if inferred_type == "unknown" else inferred_type
         return {
             "resolved": True,
             "rule": 4,
             "action": "mute",
-            "message_type": "forward",
+            "message_type": message_type,
             "confidence": 0.85,
             "reason": (
-                f"group_members.group_muted_by_user=1 and forwarded_count={forwarded}; "
+                f"group_members.group_muted_by_user=1 and forwarded_count={forwarded} is an outlier "
+                f"(>= {FORWARDED_COUNT_OUTLIER_THRESHOLD}, the dataset's high-forward cluster); "
                 f"no direct mention or urgent deadline-today language found"
             ),
             "evidence_message_ids": "none",
@@ -322,12 +387,13 @@ def rule_4_5_muted_group(context: dict) -> dict | None:
         "resolved": True,
         "rule": 4,
         "action": "digest",
-        "message_type": _infer_message_type(text, context["message"]["conversation_type"]),
+        "message_type": _infer_message_type(text, conv_type),
         "confidence": 0.7,
         "reason": (
-            "group_members.group_muted_by_user=1; no direct mention or urgent deadline-today "
-            "language found, and message is not a forward — treated as low-priority informational "
-            "content rather than junk"
+            f"group_members.group_muted_by_user=1; no direct mention or urgent deadline-today "
+            f"language found, and forwarded_count={forwarded} is not outlier-level "
+            f"(< {FORWARDED_COUNT_OUTLIER_THRESHOLD}) — treated as low-priority informational "
+            f"content rather than junk"
         ),
         "evidence_message_ids": "none",
     }
@@ -452,9 +518,14 @@ def apply_rules(context: dict) -> dict:
     goes to router.py.
 
     Any rule that resolves to mute gets its evidence_message_ids backfilled
-    (merged, deduped) with every history_candidates/cross_user_safety_evidence
-    entry that independently corroborates a mute — regardless of which specific
-    column tripped that rule's own condition. See _mute_supporting_ids()."""
+    (merged, deduped, capped at MUTE_EVIDENCE_CAP) with every
+    history_candidates/cross_user_safety_evidence entry that independently
+    corroborates a mute — regardless of which specific column tripped that
+    rule's own condition. See _mute_supporting_ids(). The cap is applied to
+    the final merged list here, not just to _mute_supporting_ids()'s own
+    contribution — a rule that already cites its own ID (e.g. rule 6's
+    duplicate match, rule 7's cross-user citation) plus a full 5 backfilled
+    IDs would otherwise total 6."""
     notes: list[dict] = []
     for rule_fn in _RULE_SEQUENCE:
         result = rule_fn(context)
@@ -467,7 +538,9 @@ def apply_rules(context: dict) -> dict:
             existing = result.get("evidence_message_ids") or "none"
             existing_ids = [] if existing == "none" else existing.split(";")
             merged = list(dict.fromkeys(existing_ids + _mute_supporting_ids(context)))
-            result["evidence_message_ids"] = ";".join(merged) if merged else "none"
+            lookup = _evidence_severity_lookup(context)
+            capped = _rank_and_cap_ids(merged, lookup, MUTE_EVIDENCE_CAP)
+            result["evidence_message_ids"] = ";".join(capped) if capped else "none"
         result["notes"] = notes
         return result
     return {"resolved": False, "rule": None, "notes": notes}
