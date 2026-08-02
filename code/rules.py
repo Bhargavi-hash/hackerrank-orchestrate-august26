@@ -43,6 +43,19 @@ FORWARDED_COUNT_OUTLIER_THRESHOLD = 7
 # make the same point.
 MUTE_EVIDENCE_CAP = HISTORY_CAP
 
+# A rule "resolving" isn't automatically the right call if its own confidence
+# is low — a 0.45 or 0.7 guess finalized without the LLM ever seeing the
+# message is worse than just escalating it, the same way rule 5 already
+# escalates rather than auto-muting an ambiguous case. Applied once, centrally,
+# in apply_rules() below (not per-rule) so it's consistent and auditable: any
+# rule branch scoring below this threshold converts to an escalation instead
+# of finalizing. At 0.75, this captures exactly rule 4's plain-digest fallback
+# (0.7), rule 6's non-muted/non-reported digest branch (0.7), and rule 7's
+# cold-start default (0.45) — every other branch already scores >= 0.75
+# (0.8-0.95) because those conditions are narrow and genuinely decisive, so
+# they're unaffected by construction, not via special-casing.
+ESCALATION_CONFIDENCE_THRESHOLD = 0.75
+
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _STOPWORDS = {
     "the", "a", "an", "and", "or", "but", "is", "are", "was", "were", "be",
@@ -517,6 +530,14 @@ def apply_rules(context: dict) -> dict:
     returns {"resolved": False, "rule": None, "notes": [...]} — the message
     goes to router.py.
 
+    Confidence-gated escalation (applied here, centrally, not per-rule): a
+    rule that "resolves" with confidence below ESCALATION_CONFIDENCE_THRESHOLD
+    is not finalized — it's converted into an escalation, same mechanism as
+    rule 5's own escalation, with the rule's would-have-been decision and
+    reasoning passed along as a hint for the LLM rather than discarded. See
+    ESCALATION_CONFIDENCE_THRESHOLD's comment for exactly which branches this
+    affects and why the rest are unaffected by construction.
+
     Any rule that resolves to mute gets its evidence_message_ids backfilled
     (merged, deduped, capped at MUTE_EVIDENCE_CAP) with every
     history_candidates/cross_user_safety_evidence entry that independently
@@ -534,6 +555,21 @@ def apply_rules(context: dict) -> dict:
         if result.get("pending"):
             notes.append(result)
             continue
+        if result.get("resolved") and result.get("confidence", 1.0) < ESCALATION_CONFIDENCE_THRESHOLD:
+            return {
+                "resolved": False,
+                "escalation": True,
+                "rule": result["rule"],
+                "escalation_reason": (
+                    f"Rule {result['rule']} would have resolved "
+                    f"({result['action']}/{result['message_type']}) at confidence "
+                    f"{result['confidence']}, below the {ESCALATION_CONFIDENCE_THRESHOLD} "
+                    f"escalation threshold — not finalizing a low-confidence rule guess; "
+                    f"deferring to the LLM router with full context. Rule's own reasoning, "
+                    f"for reference: {result['reason']}"
+                ),
+                "notes": notes,
+            }
         if result.get("resolved") and result.get("action") == "mute":
             existing = result.get("evidence_message_ids") or "none"
             existing_ids = [] if existing == "none" else existing.split(";")

@@ -162,6 +162,15 @@ confidence directly. Order matters — safety first.
 Rules 1–4, 6, and 7 can resolve directly. Rule 5 only *flags*, it never finalizes — final decision goes
 to the LLM with the flag included in its context so it can weigh urgency against the mute.
 
+**Confidence-gated escalation.** A rule "resolving" doesn't automatically mean finalizing it: `code/rules.py`
+applies a single threshold (0.75) centrally, in `apply_rules()`, not per-rule. Any branch that would
+resolve below that confidence converts into an escalation instead — same mechanism as rule 5, with the
+rule's would-have-been decision and reasoning passed to the LLM as a hint rather than discarded. In
+practice this affects exactly three branches, by construction rather than special-casing, since every
+other branch already scores 0.8+: rule 4's plain-digest fallback (0.7), rule 6's non-muted/non-reported
+digest branch (0.7), and rule 7's cold-start default (0.45). A 0.45 or 0.7 guess finalized without the
+LLM ever seeing the message is worse than escalating it.
+
 If `cross_user_safety_evidence` is non-empty for a sender this user has no personal history with, that
 is itself a safety flag — it routes into rule 1/3 territory (mute/scam or mute/spam, citing the
 cross-user message_id as evidence) rather than falling through to the cold-start default in rule 7. A
