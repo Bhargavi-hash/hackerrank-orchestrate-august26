@@ -49,11 +49,14 @@ MUTE_EVIDENCE_CAP = HISTORY_CAP
 # escalates rather than auto-muting an ambiguous case. Applied once, centrally,
 # in apply_rules() below (not per-rule) so it's consistent and auditable: any
 # rule branch scoring below this threshold converts to an escalation instead
-# of finalizing. At 0.75, this captures exactly rule 4's plain-digest fallback
-# (0.7), rule 6's non-muted/non-reported digest branch (0.7), and rule 7's
-# cold-start default (0.45) — every other branch already scores >= 0.75
-# (0.8-0.95) because those conditions are narrow and genuinely decisive, so
-# they're unaffected by construction, not via special-casing.
+# of finalizing. At 0.75, this captures rule 4's plain-digest fallback (0.7),
+# rule 6's non-muted/non-reported digest branch (0.7), rule 7's cold-start
+# default (0.45), and rule 7's cross-user-exception branch specifically when
+# the cited evidence is muted_after_message==1 without an explicit report
+# (0.6 — a weaker signal than a report, deliberately not hard-resolved on).
+# Every other branch scores >= 0.75 (0.8-0.95) because those conditions are
+# narrow and genuinely decisive, so they're unaffected by construction, not
+# via special-casing.
 ESCALATION_CONFIDENCE_THRESHOLD = 0.75
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -479,18 +482,32 @@ def rule_7_cold_start(context: dict) -> dict | None:
         reaction = best.get("reaction") or {}
         reported = reaction.get("message_reported") == "1"
         message_type = "scam" if reported else "spam"
-        reason = (
-            f"No message_history for this user with this sender, but a different user's message "
-            f"{best['message_id']} from the same sender was "
-            f"{'reported (message_reported=1)' if reported else 'muted after receipt (muted_after_message=1)'}; "
-            f"treating as safety-flagged rather than genuine cold start (§3 cross-user safety exception)"
-        )
+        if reported:
+            confidence = 0.85
+            reason = (
+                f"No message_history for this user with this sender, but a different user's message "
+                f"{best['message_id']} from the same sender was reported (message_reported=1); "
+                f"treating as safety-flagged rather than genuine cold start (§3 cross-user safety exception)"
+            )
+        else:
+            # muted_after_message==1 alone is a weaker, more ambiguous signal
+            # than an explicit report — a mute could reflect this specific
+            # user's unrelated preferences, not necessarily that the sender is
+            # unsafe. Below the escalation threshold on purpose: don't
+            # hard-resolve mute/spam off one other user's passive mute.
+            confidence = 0.6
+            reason = (
+                f"No message_history for this user with this sender, but a different user's message "
+                f"{best['message_id']} from the same sender was muted after receipt "
+                f"(muted_after_message=1, no explicit report) — a weaker, ambiguous safety signal "
+                f"compared to an explicit report; not hard-resolving on this alone"
+            )
         return {
             "resolved": True,
             "rule": "7-cross-user-exception",
             "action": "mute",
             "message_type": message_type,
-            "confidence": 0.85,
+            "confidence": confidence,
             "reason": reason,
             "evidence_message_ids": best["message_id"],
         }

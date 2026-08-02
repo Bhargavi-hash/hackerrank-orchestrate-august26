@@ -166,15 +166,20 @@ to the LLM with the flag included in its context so it can weigh urgency against
 applies a single threshold (0.75) centrally, in `apply_rules()`, not per-rule. Any branch that would
 resolve below that confidence converts into an escalation instead — same mechanism as rule 5, with the
 rule's would-have-been decision and reasoning passed to the LLM as a hint rather than discarded. In
-practice this affects exactly three branches, by construction rather than special-casing, since every
-other branch already scores 0.8+: rule 4's plain-digest fallback (0.7), rule 6's non-muted/non-reported
-digest branch (0.7), and rule 7's cold-start default (0.45). A 0.45 or 0.7 guess finalized without the
-LLM ever seeing the message is worse than escalating it.
+practice this affects four branches, by construction rather than special-casing, since every other branch
+already scores 0.8+: rule 4's plain-digest fallback (0.7), rule 6's non-muted/non-reported digest branch
+(0.7), rule 7's cold-start default (0.45), and rule 7's cross-user-exception branch specifically when the
+cited evidence is `muted_after_message==1` with no explicit report (0.6). A 0.45/0.6/0.7 guess finalized
+without the LLM ever seeing the message is worse than escalating it.
 
 If `cross_user_safety_evidence` is non-empty for a sender this user has no personal history with, that
 is itself a safety flag — it routes into rule 1/3 territory (mute/scam or mute/spam, citing the
-cross-user message_id as evidence) rather than falling through to the cold-start default in rule 7. A
-new-to-this-user business that other users already reported is not the same situation as a genuinely
+cross-user message_id as evidence) rather than falling through to the cold-start default in rule 7. This
+splits by evidence strength: `message_reported==1` on the cross-user evidence hard-resolves at 0.85 (an
+explicit report is decisive), while `muted_after_message==1` alone escalates instead — a passive mute from
+one other user is a weaker, more ambiguous signal (it could reflect that user's own preferences rather
+than the sender being unsafe) and isn't hard-resolved on by itself. A new-to-this-user business that other
+users already reported is not the same situation as a genuinely
 unknown, unreported sender.
 
 `evidence_message_ids = none` only when both `history_candidates` and `cross_user_safety_evidence` are
