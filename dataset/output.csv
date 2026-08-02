@@ -1,111 +1,111 @@
 message_id,action,message_type,reason,confidence,evidence_message_ids
-msg_023,,,,,
-msg_091,,,,,
-msg_090,,,,,
-msg_048,,,,,
-msg_040,,,,,
-msg_075,,,,,
-msg_005,,,,,
-msg_104,,,,,
-msg_069,,,,,
-msg_107,,,,,
-msg_070,,,,,
-msg_003,,,,,
-msg_099,,,,,
-msg_008,,,,,
-msg_092,,,,,
-msg_060,,,,,
-msg_004,,,,,
-msg_030,,,,,
-msg_045,,,,,
-msg_052,,,,,
-msg_009,,,,,
-msg_071,,,,,
-msg_016,,,,,
-msg_065,,,,,
-msg_038,,,,,
-msg_086,,,,,
-msg_014,,,,,
-msg_094,,,,,
-msg_029,,,,,
-msg_105,,,,,
-msg_002,,,,,
-msg_010,,,,,
-msg_078,,,,,
-msg_013,,,,,
-msg_018,,,,,
-msg_044,,,,,
-msg_032,,,,,
-msg_106,,,,,
-msg_006,,,,,
-msg_109,,,,,
-msg_108,,,,,
-msg_019,,,,,
-msg_088,,,,,
-msg_056,,,,,
-msg_027,,,,,
-msg_050,,,,,
-msg_083,,,,,
-msg_063,,,,,
-msg_033,,,,,
-msg_061,,,,,
-msg_020,,,,,
-msg_017,,,,,
-msg_058,,,,,
-msg_026,,,,,
-msg_047,,,,,
-msg_046,,,,,
-msg_042,,,,,
-msg_079,,,,,
-msg_098,,,,,
-msg_037,,,,,
-msg_007,,,,,
-msg_085,,,,,
-msg_001,,,,,
-msg_021,,,,,
-msg_028,,,,,
-msg_012,,,,,
-msg_064,,,,,
-msg_103,,,,,
-msg_031,,,,,
-msg_057,,,,,
-msg_087,,,,,
-msg_067,,,,,
-msg_039,,,,,
-msg_082,,,,,
-msg_066,,,,,
-msg_049,,,,,
-msg_015,,,,,
-msg_051,,,,,
-msg_097,,,,,
-msg_089,,,,,
-msg_053,,,,,
-msg_059,,,,,
-msg_024,,,,,
-msg_072,,,,,
-msg_036,,,,,
-msg_076,,,,,
-msg_055,,,,,
-msg_102,,,,,
-msg_080,,,,,
-msg_093,,,,,
-msg_034,,,,,
-msg_035,,,,,
-msg_101,,,,,
-msg_041,,,,,
-msg_011,,,,,
-msg_110,,,,,
-msg_095,,,,,
-msg_074,,,,,
-msg_073,,,,,
-msg_054,,,,,
-msg_068,,,,,
-msg_100,,,,,
-msg_062,,,,,
-msg_096,,,,,
-msg_043,,,,,
-msg_077,,,,,
-msg_081,,,,,
-msg_025,,,,,
-msg_084,,,,,
-msg_022,,,,,
+msg_023,notify,payment,"The message is from a verified business, HDFC Bank, and the user has an active bank account with them, indicating a trusted relationship. The message content is also consistent with previous messages from the same sender that the user has engaged with.",0.9,message_0243;message_0102;message_0101
+msg_091,mute,payment,"Near-duplicate of message_history.csv row message_0238 (100% token overlap), which this user ignored (notification_dismissed=1, muted_after_message=1, message_reported=1)",0.85,message_0271;message_0212;message_0211;message_0090;message_0089
+msg_090,notify,personal,"The message appears to be a genuine inquiry about a package mix-up, and the sender is attempting to verify the recipient's identity before taking further action. The user's history and engagement metrics do not suggest a high likelihood of spam or scam.",0.8,none
+msg_048,mute,scam,"The message contains a suspicious QR code and a sense of urgency to pay a penalty, which is similar to previous messages that the user has reported or muted, such as messages with IDs message_0151, message_0152, and message_0237.",0.8,message_0151;message_0152;message_0237
+msg_040,mute,spam,"The message contains a suspicious request to forward the message to multiple people, and the user has previously muted the group and dismissed similar messages, indicating a low engagement and potential annoyance with such content.",0.8,message_0136;message_0135
+msg_075,notify,business_update,"The user has a recent history of interacting with the sender, Grab, and has not opted out of promotions, with the last activity at 2026-07-17 23:55, indicating a relevant and potentially time-sensitive update about their ride status.",0.9,message_0206;message_0205
+msg_005,notify,personal,"The user has a history of engaging with similar messages from the group, such as messages about picking up clothing items, and has not muted the group, suggesting they are interested in these types of messages. The message itself is also time-sensitive, with a deadline for pickup, which increases its urgency and importance.",0.8,message_0065;message_0066
+msg_104,digest,event,"The user has a high notification dismissal rate (77 in 30 days) and consistently ignores peer-to-peer marketplace or pickup reminders from past history candidates (e.g., message_0224, message_0050), indicating low personal engagement with these timed pickup messages. While the message contains an urgent time constraint (6 PM), the user's historical pattern of non-response and dismissal suggests digesting it for later review is appropriate.",0.85,message_0224;message_0050
+msg_069,mute,greeting,"group_members.group_muted_by_user=1 and forwarded_count=11 is an outlier (>= 7, the dataset's high-forward cluster); no direct mention or urgent deadline-today language found",0.85,message_0194;message_0193;message_0042;message_0178;message_0177
+msg_107,mute,scam,"The message is a phishing attempt requesting OTP verification to keep wallet payments active, matching known fraudulent patterns found across multiple user safety reports.",0.99,message_0091;message_0087;message_0183
+msg_070,mute,scam,"The message is a classic phishing scam attempting to steal OTP credentials by falsely claiming account blocking. Similar scam messages in the user's history were opened out of curiosity but ignored, so this fraudulent threat should be suppressed.",0.99,message_0045
+msg_003,notify,business_update,"The message is a verified transactional delivery update from Amazon India regarding an expected order, matching a strong positive engagement history where the user consistently opens and replies to similar delivery updates.",0.95,message_0031;message_0400
+msg_099,digest,personal,"The sender notes that the information is not blocking for tonight and only needs to be read before the 11 AM standup tomorrow, matching past low-urgency sharing behavior seen in message_0227 where the user checked notes later without needing immediate interruption.",0.89,message_0227
+msg_008,digest,promotion,The message is a repeated post-purchase review request from a verified business (Hoop) where promotions are allowed and the user has a history of opening past review requests without urgent interruption needed. Digesting prevents notification fatigue from repetitive feedback prompts.,0.85,message_0072;message_0071
+msg_092,digest,business_update,"The message is a standard, non-urgent monthly statement notification from a verified business (American Express) with a matching official domain and low report rate. Given the cold-start relationship and lack of urgent action required ('whenever convenient'), routing to digest is appropriate to prevent unnecessary interruption.",0.6,none
+msg_060,notify,urgent,The message contains a time-sensitive deadline (5 PM today) from an unmuted official university faculty advising group with strong historical engagement and positive interaction from the user.,0.95,message_0176;message_0284
+msg_004,notify,business_update,The message is from a verified healthcare business (Apollo 24|7) with which the user has an active relationship (upcoming clinic appointment) and a strong history of opening and replying to similar updates quickly.,0.95,message_0245;message_0005
+msg_030,mute,promotion,"The user has explicitly muted the 'Myntra Marketplace' group and has a consistent history of dismissing notifications from marketplace listings, indicating low personal interest in this peer-to-peer selling content.",0.92,message_0115;message_0335
+msg_045,notify,urgent,"The message conveys an immediate, time-sensitive delivery issue at the user's gate requiring prompt action within 10 minutes. Given that the group is unmuted and the user actively engages with residency matters, immediate notification is necessary.",0.95,none
+msg_052,mute,scam,Sender domain talabat-refund.com does not match official domain talabat.com; message contains payment language,0.9,message_0208;message_0207;message_0160;message_0159
+msg_009,digest,event,"The user has explicitly muted the group 'Match Night Crew' and historical engagement with this sender's casual sports threads shows delayed or non-urgent interaction. Since the message discusses evening cricket highlights and is non-urgent, it should be placed in the digest rather than interrupting the user.",0.85,message_0074;message_0073
+msg_071,digest,personal,"The message is from an extended family group where the user has low engagement history and the group is not muted, but the content discusses vague tentative plans for tomorrow without immediate urgency.",0.85,message_0197
+msg_016,mute,scam,"The message exhibits classic phishing patterns ('account blocked unless you login now') with a suspicious external link, closely mirroring previous phishing attempts found in the user's history which the user reported and dismissed.",0.99,message_0024;message_0087
+msg_065,digest,promotion,"The message is a promotional reminder from a verified retail business (Target) where the user allows promotions and has engaged with similar messages in the past (message_0261). However, since it is a routine shopping discount with low real-time urgency, it should be digested rather than interrupting the user immediately.",0.88,message_0261
+msg_038,mute,spam,"The message is a classic chain-letter spam demanding immediate forwarding for good luck, matching previous low-value chain messages that the user consistently ignores.",0.98,message_0131;message_0132
+msg_086,notify,urgent,"The voice note from verified travel provider Thrillophilia concerns an immediate itinerary change for tomorrow's airport pickup. Given the user's recent active travel booking and history of engaging with logistics updates, this time-sensitive operational message warrants an immediate notification. (Note: rule layer flagged but did not resolve: domain mismatch (domain_used_by_sender=link.wame.pro vs official_domain=thrillophilia.com).)",0.65,message_0222
+msg_014,mute,promotion,User opted out of promotions from this business on 2026-07-17 23:55 (promotions_opted_out_at set); message reads as promotional content,0.88,message_0017;message_0084;message_0083;message_0317;message_0258
+msg_094,digest,promotion,"The message is a verified commercial promotion offering 40% off from a known brand (Nykaa), but the user has a high notification dismissal rate (81 in 30d) and low engagement history with this business, making digest appropriate to prevent notification fatigue.",0.6,none
+msg_029,mute,forward,"Near-duplicate of message_history.csv row message_0095 (56% token overlap), which this user ignored (notification_dismissed=1, muted_after_message=1, message_reported=0)",0.85,message_0095
+msg_105,mute,spam,"The incoming message is a heavily forwarded spam health tip advising users to stop prescribed tablets, matching clear patterns of unwanted chain messages found in historical candidates like message_0233 and message_0373.",0.98,message_0233;message_0373
+msg_002,notify,urgent,"Direct mention in a coworker group regarding an imminent client meeting about refunds, with strong historical precedent of prompt replies to similar pre-client check-ins.",0.95,message_0003;message_0169
+msg_010,digest,promotion,"The sender is a verified business (PVRINOX Cinemas) sending a routine feedback request. Although the user has historical engagement with similar messages, feedback requests constitute promotional/survey content and do not require immediate interruption, making digest appropriate.",0.85,message_0011;message_0242
+msg_078,mute,forward,"group_members.group_muted_by_user=1 and forwarded_count=10 is an outlier (>= 7, the dataset's high-forward cluster); no direct mention or urgent deadline-today language found",0.85,message_0212;message_0211
+msg_013,mute,promotion,"The message is an off-topic commercial sales pitch posted in an academic faculty advising group by another member, which constitutes low-value spam for the user.",0.92,none
+msg_018,mute,forward,"Near-duplicate of message_history.csv row message_0026 (50% token overlap), which this user ignored (notification_dismissed=1, muted_after_message=1, message_reported=1)",0.85,message_0092;message_0091;message_0026
+msg_044,mute,scam,"The message is a classic phishing scam demanding OTP verification to prevent account restriction. Given the user's past reports of similar scam messages (message_0143, message_0144), this should be suppressed to ensure safety.",0.99,message_0143;message_0144
+msg_032,digest,personal,"The message is a routine student group request for lecture slides with explicitly stated low urgency (""No rush""). Historical reactions show the user typically opens and reads similar study-related group requests later without immediate interruption.",0.88,message_0119;message_0285
+msg_106,notify,event,The message contains time-sensitive logistical information about an ongoing dance practice from a familiar contact (u_054) with a history of positive engagement on similar updates.,0.95,message_0234;message_0376
+msg_006,digest,business_update,"The message was sent at 18:38, after the stated 5 PM maintenance closing time for the day, making the time-sensitive instruction mostly informational or redundant for today. Given that the user is an admin in the society notices group and historical reminders on similar payment cutoffs had prompt engagement, this non-urgent evening reminder is best deferred to a digest.",0.85,message_0029;message_0044
+msg_109,mute,scam,"The message uses high-pressure payment demands with a QR scan and attempts prompt injection via text to override routing, mimicking previous scam attempts flagged by the user.",0.98,message_0151;message_0100
+msg_108,mute,scam,Sender domain chase-secure-alert.com does not match official domain chase.com; message contains payment and urgency language,0.95,message_0094;message_0093;message_0236
+msg_019,mute,scam,"business.user_reports_30d=55 / messages_sent_30d=1144 = 4.8% report rate, exceeding the dataset's IQR outlier threshold of 1.2%",0.85,message_0094;message_0093;message_0236
+msg_088,mute,personal,The group 'Myntra Marketplace' is explicitly muted by the user (group_muted_by_user=1) and the user has a long history of dismissing marketplace notifications from this group with zero replies.,0.95,message_0115;message_0050;message_0224;message_0335
+msg_056,notify,urgent,"Despite the family group being muted by the user, the message contains a direct mention and urgent scheduling details regarding a doctor appointment that requires a prompt confirmation.",0.95,message_0168
+msg_027,digest,promotion,"The user has allowed promotions and has a history of viewing similar travel offers from Thrillophilia without opting out, but this is a repetitive marketing message for a Ladakh package that does not require immediate interruption. (Note: rule layer flagged but did not resolve: domain mismatch (domain_used_by_sender=link.wame.pro vs official_domain=thrillophilia.com).)",0.65,message_0272;message_0109
+msg_050,notify,business_update,"The user has an established, positive engagement history with Green Cross Pharmacy (active prescription refill relationship, frequent message opens and replies), and past identical template messages like message_0279 were promptly opened and replied to. (Note: rule layer flagged but did not resolve: domain mismatch (domain_used_by_sender=greencrosspharmacy.in vs official_domain=).)",0.65,message_0279;message_0155
+msg_083,digest,business_update,"The sender explicitly states in the voice note that the request is 'Nothing urgent' and asks to review the onboarding doc tomorrow morning, making a digest appropriate for a coworker group message when the user has moderate notification fatigue.",0.88,message_0219
+msg_063,mute,scam,"The message exhibits classic financial scam characteristics (urgent reactivation fee, scanning QR, sending screenshots to a random group member) within an unrelated local food group, and the user's history shows prior scam reports and dismissals of similar fraudulent payment requests.",0.99,message_0182;message_0181
+msg_033,digest,personal,"The message is a casual family check-in from a relative in a family group chat that is not muted, but the sender explicitly states 'nothing urgent'. Given the user's high dismissal rate for notifications and the non-urgent nature of the greeting, routing to digest avoids unnecessary interruption.",0.85,message_0121
+msg_061,mute,greeting,"group_members.group_muted_by_user=1 and forwarded_count=8 is an outlier (>= 7, the dataset's high-forward cluster); no direct mention or urgent deadline-today language found",0.85,message_0194;message_0193;message_0042;message_0178;message_0177
+msg_020,mute,scam,"The message contains suspicious urgent account verification language and an external URL link (bit.ly) sent within a marketplace group by an untrusted sender, matching known phishing patterns.",0.95,none
+msg_017,mute,scam,"The message demands immediate payment under threat of service cutoff inside a muted marketplace group, matching previous scam patterns reported and dismissed by the user.",0.92,message_0090;message_0089
+msg_058,mute,forward,"group_members.group_muted_by_user=1 and forwarded_count=10 is an outlier (>= 7, the dataset's high-forward cluster); no direct mention or urgent deadline-today language found",0.85,message_0078;message_0172;message_0241;message_0040;message_0039
+msg_026,mute,scam,"business.user_reports_30d=47 / messages_sent_30d=702 = 6.7% report rate, exceeding the dataset's IQR outlier threshold of 1.2%",0.9,message_0032;message_0108;message_0107;message_0028
+msg_047,notify,event,"The message comes from the Society Maintenance Desk group about essential building utility updates, similar to previous important maintenance notices like message_0150 which the user actively engaged with.",0.92,message_0150;message_0149
+msg_046,mute,scam,"The message asks for an OTP under threat of account closure, fitting a classic phishing scam pattern. Past history shows the user actively dismisses and reports similar credential-harvesting messages in family groups.",0.99,message_0148;message_0147
+msg_042,notify,urgent,The message is an urgent security and parking alert from the user's society maintenance group requiring immediate action within 10 minutes to avoid vehicle towing. The user has a strong history of engaging with similar maintenance alerts from this group.,0.95,message_0140
+msg_079,mute,scam,"The message demands an OTP immediately under threat of account blocking, which is a classic credential-theft scam pattern. Although the group is not muted by the user, the content exhibits strong predatory urgency requesting sensitive authentication data from an untrusted sender in a marketplace group.",0.98,message_0045;message_0023
+msg_098,notify,urgent,"The message is from a trusted personal contact regarding an active medical appointment requiring immediate input, consistent with historical patterns of rapid replies to clinic-related coordination.",0.95,message_0359;message_0226
+msg_037,notify,urgent,"The message conveys an immediate, time-sensitive water delivery update in the user's residential society group requiring prompt action within 10 minutes. The group is unmuted and the user is an active participant with a history of engaging with similar urgent utility alerts.",0.95,message_0269;message_0129
+msg_007,digest,event,"The message is a routine community event update with a deadline next Sunday and explicitly asks residents not to reply in the thread. Given that the user has a high notification dismissal rate (22 in 30d) and the group is unmuted but active, this non-urgent informational update is best routed to digest.",0.85,none
+msg_085,mute,scam,Sender domain hdfcbank-kyc.in does not match official domain hdfc.bank.in; message contains payment and urgency language,0.95,none
+msg_001,notify,urgent,"The message contains time-sensitive water supply instructions with a 20-minute deadline, arriving in an unmuted society notice group where the user has previously engaged with similar utility notices (message_0057).",0.95,message_0057
+msg_021,notify,urgent,The message is an urgent payment notice from an official housing society notice group where the user is an active participant and admin who frequently engages with billing alerts.,0.92,message_0068;message_0029
+msg_028,mute,scam,Sender domain link.wame.pro does not match official domain thrillophilia.com; message contains urgency language,0.9,message_0034;message_0112;message_0111;message_0314
+msg_012,mute,forward,"The message is a classic forwarded chain-letter health tip sent to a dance class group, matching user u_003's historical pattern of dismissing and muting similar low-value forwarded spam content.",0.95,message_0247;message_0080;message_0079
+msg_064,mute,scam,"The message exhibits classic phishing/scam patterns demanding urgent wallet and card details for a refund, which closely mirrors known malicious history patterns reported by the user.",0.98,message_0087;message_0183;message_0201
+msg_103,notify,event,"The message concerns an item pickup with a specific time-sensitive deadline (6 PM today), and the user has a consistent history of engaging promptly with similar requests from this sender (e.g., message_0065, message_0382).",0.95,message_0065;message_0382
+msg_031,notify,urgent,"The message is an urgent work sync reminder from a coworker in an unmuted coworker group with high past engagement history, requiring immediate preparation before the meeting.",0.95,message_0249;message_0118
+msg_057,notify,urgent,The direct mention from a coworker in an unmuted work group regarding a failing build blocking client updates matches historical engagement patterns where u_010 promptly responds to technical troubleshooting requests.,0.95,message_0169;message_0266
+msg_087,mute,promotion,The user has explicitly muted this real estate lead group and has a history of dismissing and reporting similar promotional property voice notes and messages from this group.,0.95,message_0204;message_0203
+msg_067,notify,urgent,The message concerns an urgent society maintenance payment deadline today at 5 PM in an unmuted residential group where the user is an admin and has historically engaged promptly with payment reminders.,0.92,message_0068;message_0029
+msg_039,notify,urgent,"The direct mention (@u_006) regarding a time-sensitive school field-trip payment deadline requires immediate attention, consistent with the user's high engagement history with school notices.",0.95,message_0037;message_0051
+msg_082,notify,urgent,"The voice note from a coworker in an active coworker group indicates a live production incident with payment failures, matching historical high-priority incident alerts that the user promptly engages with.",0.95,message_0218
+msg_066,mute,promotion,User opted out of promotions from this business on 2026-07-17 23:55 (promotions_opted_out_at set); message reads as promotional content,0.88,message_0188;message_0187;message_0336
+msg_049,notify,event,The message is a legitimate time-sensitive logistics update regarding an active return pickup from a verified business (Shopee) with which the user has a strong engagement history and recent activity.,0.95,message_0153;message_0154
+msg_015,mute,scam,"The message demands sensitive OTP information under threat of profile locking, matching known phishing patterns seen in historical phishing attempts like message_0045 and message_0213, making it a high-risk security threat.",0.98,message_0045;message_0213
+msg_051,mute,promotion,User opted out of promotions from this business on 2026-07-17 23:55 (promotions_opted_out_at set); message reads as promotional content,0.88,message_0104;message_0103;message_0337;message_0356;message_0257
+msg_097,digest,personal,"The message explicitly states there is nothing urgent and requests no call tonight, making immediate interruption unnecessary. Historical interaction patterns with this sender (u_041) show similar low-urgency evening check-ins (e.g., message_0054, message_0225) which are routinely opened later without immediate replies.",0.92,message_0054;message_0225
+msg_089,notify,event,"The message contains a time-sensitive logistical notification regarding a left-behind item at a pottery workshop, requiring prompt attention before 7 PM. Although a weak historical cross-user signal exists for a different message type, the content is contextually benign and actionable for the user.",0.85,none
+msg_053,digest,business_update,"The user is an admin in an investment group that is unmuted, but the message explicitly contains passive research commentary ('no intraday call, read after market') similar to past informational updates that the user opens later without immediate urgency.",0.85,message_0411;message_0253
+msg_059,mute,scam,"The message asks for sensitive account details under false pretenses of claiming benefits with an urgent deadline, matching typical phishing patterns observed in past scam advisories.",0.98,message_0213;message_0053
+msg_024,mute,promotion,User opted out of promotions from this business on 2026-07-17 23:55 (promotions_opted_out_at set); message reads as promotional content,0.88,message_0104;message_0103;message_0337;message_0356;message_0257
+msg_072,mute,scam,"The message uses classic phishing tactics demanding urgent OTP verification through an unofficial domain (account-help.in), closely mirroring historical scam patterns found in the user's history.",0.98,message_0045;message_0023
+msg_036,mute,forward,"Near-duplicate of message_history.csv row message_0283 (100% token overlap), which this user ignored (notification_dismissed=1, muted_after_message=1, message_reported=1)",0.85,message_0128;message_0127;message_0283
+msg_076,mute,scam,Sender domain talabat-refund.com does not match official domain talabat.com; message contains payment language,0.9,message_0208;message_0207;message_0160;message_0159
+msg_055,notify,urgent,"The message explicitly requests urgent assistance with a strict ten-minute deadline from an extended family member in an unmuted group, supported by historical precedent of quick-response communication.",0.92,message_0166
+msg_102,notify,urgent,"The sender is a trusted colleague with a strong history of collaborative technical work and operational alerts (evidenced by message_0371 and message_0230). The content indicates an active production rollback requiring the user to stay online, necessitating an immediate notification.",0.95,message_0371;message_0230
+msg_080,notify,urgent,"The message is an immediate time-sensitive alert from a residential society group regarding gate access and vehicle relocation with a 10-minute window, requiring instant user awareness.",0.95,message_0130
+msg_093,digest,business_update,"Although the message claims to be from a verified business (FedEx) with a matching domain and explicit note that no payment is required, the user is currently within their Do Not Disturb window (21:00-06:30) at 22:19. Combined with cold-start history and high user dismissal rates, routing this standard delivery update to digest is appropriate to avoid unnecessary night interruption.",0.6,none
+msg_034,mute,greeting,"group_members.group_muted_by_user=1 and forwarded_count=11 is an outlier (>= 7, the dataset's high-forward cluster); no direct mention or urgent deadline-today language found",0.85,message_0077;message_0171;message_0014;message_0013
+msg_035,digest,promotion,"The sender is a verified business with matching domain and the user allows promotions, but this message is a repeated sales outreach pitch similar to message_0281 with no immediate urgency, making it suitable for a digest.",0.85,message_0281
+msg_101,digest,personal,"The sender is a familiar contact sharing a casual care message about food, explicitly stating 'No need to reply'. Given historical behavior where the user reads such messages later without immediate replies, digesting this avoids unnecessary interruption during work hours.",0.88,message_0370;message_0229;message_0268
+msg_041,digest,business_update,"The message is a low-urgency survey request from a verified educational business with historical precedent of similar surveys that the user previously opened. However, because it uses a third-party shortlink domain and the user has a moderate dismissal rate, it should be digested rather than interrupting immediately.",0.65,message_0137;message_0138
+msg_011,mute,greeting,"group_members.group_muted_by_user=1 and forwarded_count=8 is an outlier (>= 7, the dataset's high-forward cluster); no direct mention or urgent deadline-today language found",0.85,message_0077;message_0171;message_0014;message_0013;message_0123
+msg_110,mute,scam,"The message is a phishing attempt asking for a login code under false security pretences, closely matching previous scam attempts in the user's history such as message_0238.",1.0,message_0238;message_0381
+msg_095,mute,scam,"The message attempts credential theft by asking for wallet PIN confirmation on an external phishing domain, matching known scam patterns seen in user history.",0.99,message_0087;message_0183;message_0201
+msg_074,mute,promotion,"group_members.group_muted_by_user=1 and forwarded_count=7 is an outlier (>= 7, the dataset's high-forward cluster); no direct mention or urgent deadline-today language found",0.85,message_0204;message_0203;message_0223;message_0358
+msg_073,mute,scam,"The message exhibits classic phishing patterns demanding immediate security verification via an external link, closely mirroring previous fraudulent messages reported by the user.",0.99,message_0087;message_0183
+msg_054,mute,scam,The message exhibits classic advance-fee loan scam patterns (paying a fee to release funds) sent within an unrelated food group context. The user has a strong history of dismissing and reporting similar fraudulent messages.,0.98,message_0164;message_0163
+msg_068,digest,event,"The message explicitly states there is no urgency and mentions a poll will be posted at night, matching historical interaction patterns where similar casual group coordination messages are reviewed later without immediate interruption.",0.88,message_0191
+msg_100,notify,urgent,"The sender is reporting a critical production incident regarding payment worker retries with a strict 20-minute deadline, mirroring high-priority operational alerts from history that the user consistently responded to immediately.",0.95,message_0362;message_0228
+msg_062,digest,event,"The message was sent at 22:13, which falls within the user's active do-not-disturb window (21:30-06:30). Even though it's an important building announcement about a fire alarm test, urgent interruption is deferred since it concerns an event happening the next morning and the user has DND active.",0.92,message_0043
+msg_096,notify,urgent,"The incoming message claims an urgent personal matter regarding a lost passport found at the recipient's building reception, requiring action before 18h. Although there is weak cross-user safety evidence from unrelated contexts, this specific personal notice is a time-sensitive alert worth notifying rather than assuming spam.",0.65,message_0095
+msg_043,notify,urgent,"The message conveys an immediate, time-sensitive utility notice from an unmuted society group regarding water tanker supply leaving in 15 minutes, requiring prompt action similar to past emergency utility alerts that user u_011 regularly engages with.",0.92,message_0269
+msg_077,digest,event,"The message arrives during the user's do-not-disturb window (21:00-06:00) from an unmuted school group where the user has active history with similar announcements, so it should be digested rather than interrupting sleep.",0.92,message_0051;message_0037
+msg_081,notify,urgent,"The voice note from School Transport contains time-sensitive logistics regarding a child's pickup location change for today, matching a historically important alert pattern.",0.95,message_0217
+msg_025,notify,business_update,"The message is a verified transactional order update from Amazon India regarding an active order ending in 4821, matching historical order updates that the user regularly opens and engages with.",0.95,message_0105;message_0239;message_0004
+msg_084,mute,promotion,User opted out of promotions from this business on 2026-07-17 23:55 (promotions_opted_out_at set); message reads as promotional content,0.88,message_0220
+msg_022,mute,scam,"The message requests urgent payment via an external link with instructions to send a screenshot, matching patterns of prior reported phishing attempts in the society maintenance group.",0.95,message_0151;message_0152
